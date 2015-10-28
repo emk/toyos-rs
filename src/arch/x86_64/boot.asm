@@ -1,4 +1,5 @@
 ;;; Based on http://blog.phil-opp.com/rust-os/multiboot-kernel.html
+;;; and http://blog.phil-opp.com/rust-os/entering-longmode.html
 ;;;
 ;;; The actual boot code of our kernel.
 
@@ -14,6 +15,10 @@ start:
         call test_multiboot
         call test_cpuid
         call test_long_mode
+
+        ;; Turn on paging.
+        call setup_page_tables
+        call enable_paging
 
         mov dword [0xb8000], 0x2f4b2f4f  ; Print "OK" to screen.
         hlt
@@ -31,11 +36,11 @@ error:
 ;;; Make sure we were loaded by multiboot.
 test_multiboot:
         cmp eax, 0x36d76289     ; Did multiboot put a magic value in eax?
-        je .found_multiboot
+        jne .no_multiboot
+        ret
+.no_multiboot:
         mov al, "M"
         jmp error
-.found_multiboot:
-        ret
 
 ;;; Test for CPUID.  Copied from
 ;;; http://blog.phil-opp.com/rust-os/entering-longmode.html
@@ -76,8 +81,55 @@ test_long_mode:
         mov al, "L"
         jmp error
 
-;;; A tiny stack for our boot loader.
+;;; Configure p4_table and p3_table to map a single, huge 1GB page that
+;;; has the same virtual and physical addresses, located at 0x0.
+setup_page_tables:
+        ;; Point first entry in P4 at P3, setting appropriate flag
+        ;; bits in the unused portions of the pointer.
+        mov eax, p3_table
+        or eax, 0b11                      ; Present & writable.
+        mov [p4_table], eax
+
+        ;; Map first entry in P3 to 0, with flag bits set.
+        mov dword [p3_table], 0b10000011  ; Present & writable & huge.
+        ret
+
+enable_paging:
+        ;; Load P4 into cr3.
+        mov eax, p4_table
+        mov cr3, eax
+
+        ;; Enable Physical Address Extension in cr4.
+        mov eax, cr4
+        or eax, 0x20
+        mov cr4, eax
+
+        ;; Set the long mode bit in the EFER MSR.
+        mov ecx, 0xC0000080
+        rdmsr
+        or eax, 0x100
+        wrmsr
+
+        ;; Turn on paging in cr0.
+        mov eax, cr0
+        or eax, 0x80010000
+        mov cr0, eax
+        ret
+
 section .bss
+
+;;; P4 page table for configuring virtual memory.  Must be aligned on a
+;;; 4096-byte boundary.
+align 4096
+p4_table:
+        resb 4096
+
+;;; P3 page table for configuring virtual memory.  Must be aligned on a
+;;; 4096-byte boundary.
+p3_table:
+        resb 4096
+
+;;; A tiny stack for our boot loader.
 stack_bottom:
         resb 64                 ; Bytes to reserve.
 stack_top:
