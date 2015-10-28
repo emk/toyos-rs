@@ -25,7 +25,7 @@ $(iso): $(kernel) $(grub_cfg)
 	mkdir -p build/isofiles/boot/grub
 	cp $(kernel) build/isofiles/boot/kernel.bin
 	cp $(grub_cfg) build/isofiles/boot/grub
-	grub-mkrescue -o $(iso) build/isofiles
+	grub-mkrescue /usr/lib/grub/i386-pc -o $(iso) build/isofiles
 	rm -r build/isofiles
 
 $(kernel): $(assembly_object_files) $(linker_script)
