@@ -3,10 +3,16 @@ name = "toyos"
 version = "0.1.0"
 dependencies = [
  "rlibc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spin 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rlibc"
 version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "spin"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 

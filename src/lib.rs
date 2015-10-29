@@ -1,19 +1,13 @@
-#![feature(no_std, lang_items)]
+#![feature(const_fn, no_std, lang_items, unique)]
 #![no_std]
 
-#[repr(C)]
-struct ColoredChar {
-    c: u8,
-    color: u8
-}
+extern crate spin;
+
+mod vga;
 
 #[no_mangle]
 pub extern fn rust_main() {
-    let buffer_ptr = 0xb8000 as *mut ColoredChar;
-    let buffer: &mut [ColoredChar; 80 * 25] =
-        unsafe { &mut *(buffer_ptr as *mut [_; 80*25]) };
-
-    buffer[0] = ColoredChar { c: b'H', color: 14 };
+    vga::SCREEN.lock().write(b'#');
     loop {};
 }
 

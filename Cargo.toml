@@ -12,4 +12,7 @@ authors = [
 crate-type = ["staticlib"]
 
 [dependencies]
+# Low-level functions like memcpy.
 rlibc = "*"
+# Spinlocks.
+spin = "*"
