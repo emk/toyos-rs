@@ -64,7 +64,7 @@ pub struct Screen {
 
 impl Screen {
     /// Clear the screen to the specified color.
-    pub fn clear(&mut self, color: Color) {
+    pub fn clear(&mut self, color: Color) -> &mut Self {
         let colors = ColorScheme::new(color, color);
         let c = Char{code: b' ', colors: colors};
         for y in 0..HEIGHT {
@@ -72,11 +72,13 @@ impl Screen {
                 self.buffer()[y][x] = c;
             }
         }
+        self
     }
 
     /// Set the current text colors.
-    pub fn set_colors(&mut self, colors: ColorScheme) {
+    pub fn set_colors(&mut self, colors: ColorScheme) -> &mut Self {
         self.colors = colors;
+        self
     }
 
     /// Write a string to the screen.

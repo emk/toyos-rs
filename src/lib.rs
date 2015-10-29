@@ -13,11 +13,9 @@ pub extern fn rust_main() {
 
     arch::interrupts::initialize();
 
-    {
-        let mut screen = SCREEN.lock();
-        screen.clear(DarkGrey);
-        screen.set_colors(ColorScheme::new(Yellow, DarkGrey));
-    }
+    SCREEN.lock()
+        .clear(DarkGrey)
+        .set_colors(ColorScheme::new(Yellow, DarkGrey));
     println!("Hello, world!");
 
     loop {};
