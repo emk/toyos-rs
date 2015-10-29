@@ -7,7 +7,13 @@ mod vga;
 
 #[no_mangle]
 pub extern fn rust_main() {
-    vga::SCREEN.lock().write(b'#');
+    use vga::{SCREEN, ColorScheme};
+    use vga::Color::*;
+
+    let mut screen = SCREEN.lock();
+    screen.clear(DarkGrey);
+    screen.set_colors(ColorScheme::new(Yellow, DarkGrey));
+    screen.write(b"Hello, world!");
     loop {};
 }
 
