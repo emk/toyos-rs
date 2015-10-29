@@ -67,4 +67,5 @@ report_interrupt:
         ;; Print "INT!"
         mov rax, 0x2f212f542f4e2f49
         mov qword [SCREEN_BASE], rax
-        hlt
+.loop
+        jmp .loop

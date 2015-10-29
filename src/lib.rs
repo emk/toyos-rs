@@ -1,4 +1,4 @@
-#![feature(const_fn, no_std, lang_items, unique, core_str_ext)]
+#![feature(asm, const_fn, no_std, lang_items, unique, core_slice_ext, core_str_ext)]
 #![no_std]
 
 extern crate rlibc;
@@ -11,12 +11,12 @@ pub extern fn rust_main() {
     use arch::vga::{SCREEN, ColorScheme};
     use arch::vga::Color::*;
 
-    arch::interrupts::initialize();
-
     SCREEN.lock()
         .clear(DarkGrey)
         .set_colors(ColorScheme::new(Yellow, DarkGrey));
     println!("Hello, world!");
+
+    arch::interrupts::initialize();
 
     loop {};
 }
