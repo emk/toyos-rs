@@ -3,12 +3,12 @@
 
 extern crate spin;
 
-mod vga;
+mod arch;
 
 #[no_mangle]
 pub extern fn rust_main() {
-    use vga::{SCREEN, ColorScheme};
-    use vga::Color::*;
+    use arch::vga::{SCREEN, ColorScheme};
+    use arch::vga::Color::*;
 
     let mut screen = SCREEN.lock();
     screen.clear(DarkGrey);
