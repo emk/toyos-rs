@@ -6,4 +6,5 @@ pub use self::platform::*;
 #[path="x86_64"]
 mod platform {
     pub mod vga;
+    pub mod interrupts;
 }

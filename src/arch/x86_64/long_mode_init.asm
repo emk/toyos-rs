@@ -9,6 +9,8 @@
 ;;; "INT!".chars.map {|c| sprintf("2f%02x", c.ord) }.reverse.join
 
 global long_mode_start
+global report_interrupt
+
 extern rust_main
 
 SCREEN_BASE equ 0xb8000

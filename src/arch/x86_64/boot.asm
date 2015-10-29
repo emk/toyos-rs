@@ -4,6 +4,8 @@
 ;;; The actual boot code of our kernel.
 
 global start
+global gdt64_code_offset
+
 extern long_mode_start
 
 ;;; Our main entry point.  Invoked by out boot loader.
@@ -160,3 +162,7 @@ gdt64:
 .pointer:
     dw $ - gdt64 - 1
     dq gdt64
+
+;;; Export selectors so Rust can access them.
+gdt64_code_offset:
+    dw gdt64.code

@@ -10,6 +10,8 @@ pub extern fn rust_main() {
     use arch::vga::{SCREEN, ColorScheme};
     use arch::vga::Color::*;
 
+    arch::interrupts::initialize();
+
     let mut screen = SCREEN.lock();
     screen.clear(DarkGrey);
     screen.set_colors(ColorScheme::new(Yellow, DarkGrey));
