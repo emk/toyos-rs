@@ -13,7 +13,7 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
-.PHONY: all clean run iso cargo
+.PHONY: all clean run debug iso cargo
 
 all: $(kernel)
 
@@ -23,6 +23,10 @@ clean:
 run: $(iso)
 	@echo QEMU $(iso)
 	@qemu-system-x86_64 -hda $(iso)
+
+debug: $(iso)
+	@echo QEMU -d int $(iso)
+	@qemu-system-x86_64 -hda $(iso) -d int -no-reboot
 
 $(iso): $(kernel) $(grub_cfg)
 	@echo ISO $(iso)
