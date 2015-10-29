@@ -35,7 +35,7 @@ $(kernel): cargo $(assembly_object_files) $(linker_script)
 		$(assembly_object_files) $(rust_os)
 
 cargo:
-	cargo rustc --target $(target) -- -Z no-landing-pads
+	cargo rustc --target $(target) -- -Z no-landing-pads -C no-redzone
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	mkdir -p $(shell dirname $@)
