@@ -91,6 +91,7 @@ impl Screen {
     /// Write a single character to the screen.
     pub fn write_byte(&mut self, code: u8) {
         if code == b'\n' {
+            self.x = 0;
             self.y += 1;
         } else {
             let c = Char{code: code, colors: self.colors};
