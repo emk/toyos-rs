@@ -4,6 +4,7 @@
 ;;; The actual boot code of our kernel.
 
 global start
+extern long_mode_start
 
 ;;; Our main entry point.  Invoked by out boot loader.
 section .text
@@ -20,8 +21,18 @@ start:
         call setup_page_tables
         call enable_paging
 
-        mov dword [0xb8000], 0x2f4b2f4f  ; Print "OK" to screen.
-        hlt
+        ;; Install our GDT.
+        lgdt [gdt64.pointer]
+
+        ;; Set up our data segment registers.
+        mov ax, gdt64.data
+        mov ss, ax
+        mov ds, ax
+        mov es, ax
+
+        ;; To set up our code segment, we need to make a jump, and
+        ;; when the jump finishes, we'll be in 64-bit mode.
+        jmp gdt64.code:long_mode_start
 
 ;;; Boot-time error handler.  Prints `ERR: ` and a code.
 ;;;
@@ -94,6 +105,7 @@ setup_page_tables:
         mov dword [p3_table], 0b10000011  ; Present & writable & huge.
         ret
 
+;;; Turn on paging.
 enable_paging:
         ;; Load P4 into cr3.
         mov eax, p4_table
@@ -133,3 +145,16 @@ p3_table:
 stack_bottom:
         resb 64                 ; Bytes to reserve.
 stack_top:
+
+;;; Global Description Table.  Used to set segmentation to the restricted
+;;; values needed for 64-bit mode.
+section .rodata
+gdt64:
+    dq 0                                                ; Mandatory 0.
+.code: equ $ - gdt64
+    dq (1<<44) | (1<<47) | (1<<41) | (1<<43) | (1<<53)  ; Code segment.
+.data: equ $ - gdt64
+    dq (1<<44) | (1<<47) | (1<<41)                      ; Data segment.
+.pointer:
+    dw $ - gdt64 - 1
+    dq gdt64
