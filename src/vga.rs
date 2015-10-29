@@ -10,6 +10,7 @@ const HEIGHT: usize = 25;
 /// Standard VGA colors.
 #[derive(Copy, Clone)]
 #[repr(u8)]
+#[allow(dead_code)]
 pub enum Color {
     Black = 0,
     Blue = 1,
