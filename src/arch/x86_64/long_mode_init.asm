@@ -3,6 +3,10 @@
 ;;;
 ;;; Once we've run all our 32-bit setup code, we jump here and enter 64-bit
 ;;; mode.
+;;;
+;;; To generate yellow 4-letter debug text values, you can run:
+;;;
+;;; "INT!".chars.map {|c| sprintf("2f%02x", c.ord) }.reverse.join
 
 global long_mode_start
 extern rust_main
@@ -55,3 +59,10 @@ setup_SSE:
 .no_SSE:
         mov al, "S"
         jmp error
+
+;;; A dummy interrupt handler.
+report_interrupt:
+        ;; Print "INT!"
+        mov rax, 0x2f212f542f4e2f49
+        mov qword [SCREEN_BASE], rax
+        hlt
