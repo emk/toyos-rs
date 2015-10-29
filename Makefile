@@ -1,7 +1,9 @@
 # Copied from http://blog.phil-opp.com/rust-os/multiboot-kernel.html
 
 arch ?= x86_64
+target ?= $(arch)-unknown-linux-gnu
 
+rust_os := target/$(target)/debug/libtoyos.a
 kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 
@@ -11,7 +13,7 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
-.PHONY: all clean run iso
+.PHONY: all clean run iso cargo
 
 all: $(kernel)
 
@@ -28,8 +30,12 @@ $(iso): $(kernel) $(grub_cfg)
 	grub-mkrescue /usr/lib/grub/i386-pc -o $(iso) build/isofiles
 	rm -r build/isofiles
 
-$(kernel): $(assembly_object_files) $(linker_script)
-	ld -n -T $(linker_script) -o $(kernel) $(assembly_object_files)
+$(kernel): cargo $(assembly_object_files) $(linker_script)
+	ld -n --gc-sections -T $(linker_script) -o $(kernel) \
+		$(assembly_object_files) $(rust_os)
+
+cargo:
+	cargo rustc --target $(target) -- -Z no-landing-pads
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	mkdir -p $(shell dirname $@)

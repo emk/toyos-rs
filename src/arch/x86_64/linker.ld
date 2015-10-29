@@ -13,7 +13,7 @@ SECTIONS {
     .boot :
     {
         /* This goes first. */
-        *(.multiboot_header)
+        KEEP(*(.multiboot_header))
     }
 
     .text :
