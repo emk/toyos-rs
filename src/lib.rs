@@ -1,9 +1,10 @@
-#![feature(const_fn, no_std, lang_items, unique)]
+#![feature(const_fn, no_std, lang_items, unique, core_str_ext)]
 #![no_std]
 
+extern crate rlibc;
 extern crate spin;
 
-mod arch;
+#[macro_use] mod arch;
 
 #[no_mangle]
 pub extern fn rust_main() {
@@ -12,10 +13,13 @@ pub extern fn rust_main() {
 
     arch::interrupts::initialize();
 
-    let mut screen = SCREEN.lock();
-    screen.clear(DarkGrey);
-    screen.set_colors(ColorScheme::new(Yellow, DarkGrey));
-    screen.write(b"Hello, world!");
+    {
+        let mut screen = SCREEN.lock();
+        screen.clear(DarkGrey);
+        screen.set_colors(ColorScheme::new(Yellow, DarkGrey));
+    }
+    println!("Hello, world!");
+
     loop {};
 }
 

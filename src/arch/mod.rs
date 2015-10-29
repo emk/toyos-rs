@@ -4,7 +4,8 @@ pub use self::platform::*;
 // Implementations for x86_64.
 #[cfg(target_arch="x86_64")]
 #[path="x86_64"]
+#[macro_use]
 mod platform {
-    pub mod vga;
+    #[macro_use] pub mod vga;
     pub mod interrupts;
 }
