@@ -141,9 +141,11 @@ p4_table:
 p3_table:
         resb 4096
 
-;;; A tiny stack for our boot loader.
+;;; Our kernel stack.  We want to make this large enough so that we don't
+;;; need to worry about overflowing it until we figure out how to set up
+;;; a guard page and print errors on page faults.
 stack_bottom:
-        resb 64                 ; Bytes to reserve.
+        resb 8192
 stack_top:
 
 ;;; Global Description Table.  Used to set segmentation to the restricted
