@@ -64,8 +64,11 @@ setup_SSE:
 
 ;;; A dummy interrupt handler.
 report_interrupt:
+        push rax
+
         ;; Print "INT!"
         mov rax, 0x2f212f542f4e2f49
         mov qword [SCREEN_BASE], rax
-.loop
-        jmp .loop
+
+        pop rax
+        iretq

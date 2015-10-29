@@ -81,12 +81,10 @@ pub fn initialize() {
         base: ((&(idt.table[0])) as *const IdtEntry) as u64,
     };
 
-    println!("report_interrupt: {:?}", report_interrupt);
-    println!("IdtEntry: {:?}", idt.table[1]);
-    println!("Printed IdtEntry");
     unsafe {
         asm!("lidt ($0)" :: "{rax}"(&ptr) :: "volatile");
         // Test it.
         asm!("int $$0x01" :::: "volatile");
     }
+    println!("Interrupt returned!");
 }
