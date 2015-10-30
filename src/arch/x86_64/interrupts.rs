@@ -3,6 +3,10 @@
 ///
 /// See section 6.10 of
 /// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
+///
+/// See http://jvns.ca/blog/2013/12/04/day-37-how-a-keyboard-works/ for
+/// some general advice on setting up interrupts and an entertaining saga
+/// of frustration.
 
 use core::mem::size_of;
 use spin::Mutex;
@@ -12,11 +16,22 @@ use spin::Mutex;
 const IDT_ENTRY_COUNT: usize = 256;
 
 extern "C" {
+    /// The offset of the main code segment in out GDT.  Exported by our
+    /// assembly code.
     static gdt64_code_offset: u16;
+
+    /// A primitive interrupt-reporting function.
     fn report_interrupt();
 }
 
-// "6.14.1 64-Bit Mode IDT"
+/// An entry in a 64-bit IDT table.  See the Intel manual mentioned above
+/// for details, specifically, the section "6.14.1 64-Bit Mode IDT" and the
+/// following data values from "Table 3-2. System-Segment and
+/// Gate-Descriptor Types":
+///
+/// 1100 Call gate
+/// 1110 Interrupt gate
+/// 1111 Trap Gate
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
 struct IdtEntry {
@@ -29,6 +44,9 @@ struct IdtEntry {
 }
 
 impl IdtEntry {
+    /// Create a IdtEntry marked as "absent".  Not tested with real
+    /// interrupts yet.  This contains only simple values, so we can call
+    /// it at compile time to initialize data structures.
     const fn absent() -> IdtEntry {
         IdtEntry{
             offset_low: 0,
@@ -40,11 +58,7 @@ impl IdtEntry {
         }
     }
 
-    // Table 3-2. System-Segment and Gate-Descriptor Types
-    // 1 1 0 0 64-bit call gate
-    // 1 1 1 0 64-bit Interrupt Gate
-    // 1 1 1 1 64-bit Trap Gate
-
+    /// Create a new IdtEntry pointing at `handler`.
     fn new(handler: unsafe extern "C" fn ()) -> IdtEntry {
         IdtEntry{
             offset_low: ((handler as u64) & 0xFFFF) as u16,
@@ -57,20 +71,26 @@ impl IdtEntry {
     }
 }
 
+/// An Interrupt Descriptor Table which specifies how to respond to each
+/// interrupt.
 struct Idt {
     table: [IdtEntry; IDT_ENTRY_COUNT],
 }
 
+/// Our global IDT.
 static IDT: Mutex<Idt> = Mutex::new(Idt{
     table: [IdtEntry::absent(); IDT_ENTRY_COUNT],
 });
 
+/// A 6-byte value describing an ID.  This is basically an extended
+/// argument for use with the IDT function.
 #[repr(C, packed)]
 struct IdtPointer {
     limit: u16,
     base: u64,
 }
 
+/// Initialize interrupt handling.
 pub fn initialize() {
     let mut idt = IDT.lock();
     for entry in idt.table.iter_mut() {
@@ -81,10 +101,23 @@ pub fn initialize() {
         base: ((&(idt.table[0])) as *const IdtEntry) as u64,
     };
 
+    // Load our IDT.
     unsafe {
         asm!("lidt ($0)" :: "{rax}"(&ptr) :: "volatile");
-        // Test it.
-        asm!("int $$0x01" :::: "volatile");
     }
+
+    // Enable this to trigger a sample interrupt.
+    test_interrupt();
+
+    // TODO: Actually enable interrupts.
+}
+
+/// Use the `int` instruction to manually trigger an interrupt without
+/// actually using `sti` to enable interrupts.  This is highly recommended by
+/// http://jvns.ca/blog/2013/12/04/day-37-how-a-keyboard-works/
+#[allow(dead_code)]
+pub fn test_interrupt() {
+    println!("Triggering interrupt.");
+    unsafe { asm!("int $$0x01" :::: "volatile"); }
     println!("Interrupt returned!");
 }
