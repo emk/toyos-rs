@@ -77,34 +77,56 @@ struct Idt {
     table: [IdtEntry; IDT_ENTRY_COUNT],
 }
 
+impl Idt {
+    /// The base address of our IDT.
+    fn base(&self) -> u64 {
+        &self.table[0] as *const IdtEntry as u64
+    }
+
+    /// The size of our IDT.
+    fn limit(&self) -> u16 {
+        (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16
+    }
+
+    /// An IdtInfo describing our IDT.
+    fn info(&self) -> IdtInfo {
+        IdtInfo{ limit: self.limit(), base: self.base() }
+    }
+}
+
+/// A 6-byte value describing an ID.  This is basically an extended
+/// argument for use with the IDT function.
+#[repr(C, packed)]
+struct IdtInfo {
+    limit: u16,
+    base: u64,
+}
+
+impl IdtInfo {
+    /// Load this IDT
+    pub fn load(&self) {
+        unsafe {
+            asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
+        }
+    }
+}
+
 /// Our global IDT.
 static IDT: Mutex<Idt> = Mutex::new(Idt{
     table: [IdtEntry::absent(); IDT_ENTRY_COUNT],
 });
 
-/// A 6-byte value describing an ID.  This is basically an extended
-/// argument for use with the IDT function.
-#[repr(C, packed)]
-struct IdtPointer {
-    limit: u16,
-    base: u64,
-}
-
 /// Initialize interrupt handling.
 pub fn initialize() {
     let mut idt = IDT.lock();
+
+    // Fill in our IDT with dummy handlers.
     for entry in idt.table.iter_mut() {
         *entry = IdtEntry::new(report_interrupt);
     }
-    let ptr = IdtPointer{
-        limit: (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16,
-        base: ((&(idt.table[0])) as *const IdtEntry) as u64,
-    };
 
     // Load our IDT.
-    unsafe {
-        asm!("lidt ($0)" :: "{rax}"(&ptr) :: "volatile");
-    }
+    idt.info().load();
 
     // Enable this to trigger a sample interrupt.
     test_interrupt();
