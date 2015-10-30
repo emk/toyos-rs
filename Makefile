@@ -9,6 +9,7 @@ iso := build/os-$(arch).iso
 
 linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
+assembly_header_files := $(wildcard src/arch/$(arch)/*.inc)
 assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
@@ -46,7 +47,7 @@ cargo:
 	@echo CARGO
 	@cargo rustc --target $(target) -- -Z no-landing-pads -C no-redzone
 
-build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
+build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 	@echo NASM $<
 	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 $< -o $@
+	@nasm -felf64 -Isrc/arch/$(arch)/ $< -o $@

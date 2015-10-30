@@ -8,12 +8,11 @@
 ;;;
 ;;; "INT!".chars.map {|c| sprintf("2f%02x", c.ord) }.reverse.join
 
+%include 'common.inc'
+
 global long_mode_start
-global report_interrupt
 
 extern rust_main
-
-SCREEN_BASE equ 0xb8000
 
 section .text
 bits 64
@@ -62,13 +61,3 @@ setup_SSE:
         mov al, "S"
         jmp error
 
-;;; A dummy interrupt handler.
-report_interrupt:
-        push rax
-
-        ;; Print "INT!"
-        mov rax, 0x2f212f542f4e2f49
-        mov qword [SCREEN_BASE], rax
-
-        pop rax
-        iretq
