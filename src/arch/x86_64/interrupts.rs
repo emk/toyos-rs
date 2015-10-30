@@ -105,9 +105,7 @@ struct IdtInfo {
 impl IdtInfo {
     /// Load this IDT
     pub fn load(&self) {
-        unsafe {
-            asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
-        }
+        unsafe { asm!("lidt ($0)" :: "{rax}"(self) :: "volatile"); }
     }
 }
 
