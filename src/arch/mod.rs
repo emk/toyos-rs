@@ -1,11 +1,12 @@
 // Export our platform-specific modules.
-pub use self::platform::*;
+#[cfg(target_arch="x86_64")]
+pub use self::x86_64::*;
 
 // Implementations for x86_64.
 #[cfg(target_arch="x86_64")]
-#[path="x86_64"]
 #[macro_use]
-mod platform {
-    #[macro_use] pub mod vga;
+pub mod x86_64 {
+    #[macro_use]
+    pub mod vga;
     pub mod interrupts;
 }

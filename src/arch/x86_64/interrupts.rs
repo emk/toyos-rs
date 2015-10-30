@@ -15,7 +15,7 @@ use spin::Mutex;
 /// want.
 const IDT_ENTRY_COUNT: usize = 256;
 
-extern "C" {
+extern {
     /// The offset of the main code segment in out GDT.  Exported by our
     /// assembly code.
     static gdt64_code_offset: u16;
@@ -48,7 +48,7 @@ impl IdtEntry {
     /// interrupts yet.  This contains only simple values, so we can call
     /// it at compile time to initialize data structures.
     const fn absent() -> IdtEntry {
-        IdtEntry{
+        IdtEntry {
             offset_low: 0,
             segment: 0,
             flags: 0b000_01110_000_00000,
@@ -59,8 +59,8 @@ impl IdtEntry {
     }
 
     /// Create a new IdtEntry pointing at `handler`.
-    fn new(handler: unsafe extern "C" fn ()) -> IdtEntry {
-        IdtEntry{
+    fn new(handler: unsafe extern "C" fn()) -> IdtEntry {
+        IdtEntry {
             offset_low: ((handler as u64) & 0xFFFF) as u16,
             segment: gdt64_code_offset,
             flags: 0b100_01110_000_00000,
@@ -90,7 +90,10 @@ impl Idt {
 
     /// An IdtInfo describing our IDT.
     fn info(&self) -> IdtInfo {
-        IdtInfo{ limit: self.limit(), base: self.base() }
+        IdtInfo {
+            limit: self.limit(),
+            base: self.base(),
+        }
     }
 }
 
@@ -105,14 +108,14 @@ struct IdtInfo {
 impl IdtInfo {
     /// Load this IDT
     pub fn load(&self) {
-        unsafe { asm!("lidt ($0)" :: "{rax}"(self) :: "volatile"); }
+        unsafe {
+            asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
+        }
     }
 }
 
 /// Our global IDT.
-static IDT: Mutex<Idt> = Mutex::new(Idt{
-    table: [IdtEntry::absent(); IDT_ENTRY_COUNT],
-});
+static IDT: Mutex<Idt> = Mutex::new(Idt { table: [IdtEntry::absent(); IDT_ENTRY_COUNT] });
 
 /// Initialize interrupt handling.
 pub fn initialize() {
@@ -138,6 +141,8 @@ pub fn initialize() {
 #[allow(dead_code)]
 pub fn test_interrupt() {
     println!("Triggering interrupt.");
-    unsafe { asm!("int $$0x01" :::: "volatile"); }
+    unsafe {
+        asm!("int $$0x01" :::: "volatile");
+    }
     println!("Interrupt returned!");
 }

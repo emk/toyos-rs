@@ -14,9 +14,12 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
-.PHONY: all clean run debug iso cargo
+.PHONY: all fmt clean run debug iso cargo
 
 all: $(kernel)
+
+fmt:
+	rustfmt --write-mode overwrite src/lib.rs
 
 clean:
 	rm -rf build

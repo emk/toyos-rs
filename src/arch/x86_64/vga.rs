@@ -35,12 +35,12 @@ pub enum Color {
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct ColorScheme {
-    value: u8
+    value: u8,
 }
 
 impl ColorScheme {
     pub const fn new(fore: Color, back: Color) -> Self {
-        ColorScheme{value: (back as u8) << 4 | (fore as u8)}
+        ColorScheme { value: (back as u8) << 4 | (fore as u8) }
     }
 }
 
@@ -66,7 +66,10 @@ impl Screen {
     /// Clear the screen to the specified color.
     pub fn clear(&mut self, color: Color) -> &mut Self {
         let colors = ColorScheme::new(color, color);
-        let c = Char{code: b' ', colors: colors};
+        let c = Char {
+            code: b' ',
+            colors: colors,
+        };
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
                 self.buffer()[y][x] = c;
@@ -94,7 +97,10 @@ impl Screen {
             self.x = 0;
             self.y += 1;
         } else {
-            let c = Char{code: code, colors: self.colors};
+            let c = Char {
+                code: code,
+                colors: self.colors,
+            };
             self.buffer()[self.y][self.x] = c;
             self.x += 1;
             if self.x >= WIDTH {
@@ -137,7 +143,7 @@ macro_rules! println {
 
 
 /// The system's VGA screen.
-pub static SCREEN: Mutex<Screen> = Mutex::new(Screen{
+pub static SCREEN: Mutex<Screen> = Mutex::new(Screen {
     colors: ColorScheme::new(Color::White, Color::Black),
     x: 0,
     y: 0,
