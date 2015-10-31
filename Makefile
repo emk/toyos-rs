@@ -1,7 +1,7 @@
 # Copied from http://blog.phil-opp.com/rust-os/multiboot-kernel.html
 
 arch ?= x86_64
-target ?= $(arch)-unknown-linux-gnu
+target ?= $(arch)-unknown-none-gnu
 
 rust_os := target/$(target)/debug/libtoyos.a
 kernel := build/kernel-$(arch).bin
@@ -14,7 +14,13 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
-.PHONY: all fmt clean run debug iso cargo
+libcore_nofp_patch := build/libcore_nofp.patch
+libcore_nofp_url := \
+	https://raw.githubusercontent.com/thepowersgang/rust-barebones-kernel/master/libcore_nofp.patch
+installed_target_libs := \
+	~/.multirust/toolchains/nightly/lib/rustlib/$(target)/lib
+
+.PHONY: all fmt clean run debug iso cargo core patch
 
 all: $(kernel)
 
@@ -22,7 +28,7 @@ fmt:
 	rustfmt --write-mode overwrite src/lib.rs
 
 clean:
-	rm -rf build
+	rm -rf build target
 
 run: $(iso)
 	@echo QEMU $(iso)
@@ -48,7 +54,25 @@ $(kernel): cargo $(assembly_object_files) $(linker_script)
 
 cargo:
 	@echo CARGO
-	@cargo rustc --target $(target) -- -Z no-landing-pads -C no-redzone
+	@cargo rustc --target $(target) -- -Z no-landing-pads
+
+patch: $(libcore_nofp_patch)
+	@echo Patching libcore to remove floating point.
+	@(cd rust/src/libcore && patch -p1 < ../../../$(libcore_nofp_patch))
+
+$(libcore_nofp_patch):
+	@echo CURL $(libcore_nofp_patch)
+	@mkdir -p $(shell dirname $(libcore_nofp_patch))
+	@curl -o $(libcore_nofp_patch) $(libcore_nofp_url)
+
+core:
+	@echo RUSTC libcore
+	@mkdir -p $(installed_target_libs)
+	@rustc --verbose --target $(target) \
+		-Z no-landing-pads \
+		--cfg disable_float \
+		--out-dir $(installed_target_libs) \
+		rust/src/libcore/lib.rs
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 	@echo NASM $<
