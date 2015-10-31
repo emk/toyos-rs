@@ -13,6 +13,11 @@ global report_interrupt
 ;;;
 ;;; We skip any "callee saved" registers, on the theory that the Rust
 ;;; compiler will save them if it actually uses them.
+;;;
+;;; We don't save any floating point, MMX, SSE, etc. registers, because
+;;; they're large, complicated, and slow to save, and we want our interrupt
+;;; handlers to be fast.  So we just don't use any of those processor
+;;; features in kernel mode.
 %macro push_caller_saved 0
         ;; Save ordinary registers.
         push rax
@@ -22,17 +27,12 @@ global report_interrupt
         push r9
         push r10
         push r11
+        ;; These two are caller-saved on x86_64!
         push rdi
         push rsi
-
-        ;; Save "Media and x87 Execution Unit State".
-        ;; FXSAVE
 %endmacro
 
 %macro pop_caller_saved 0
-        ;; Restore "Media and x87 Execution Unit State".
-        ;; FXRSTOR
-
         ;; Restore ordinary registers.
         pop rsi
         pop rdi
