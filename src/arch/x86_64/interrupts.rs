@@ -21,7 +21,16 @@ extern {
     static gdt64_code_offset: u16;
 
     /// A primitive interrupt-reporting function.
+    #[allow(dead_code)]
     fn report_interrupt();
+
+    /// Interrupt handlers which call back to rust_interrupt_handler.
+    static int_handlers: [Option<unsafe extern "C" fn()>; 16];
+}
+
+#[no_mangle]
+pub extern "C" fn rust_interrupt_handler() {
+    println!("Handling interrupt")
 }
 
 /// An entry in a 64-bit IDT table.  See the Intel manual mentioned above
@@ -121,9 +130,12 @@ static IDT: Mutex<Idt> = Mutex::new(Idt { table: [IdtEntry::absent(); IDT_ENTRY_
 pub fn initialize() {
     let mut idt = IDT.lock();
 
-    // Fill in our IDT with dummy handlers.
-    for entry in idt.table.iter_mut() {
-        *entry = IdtEntry::new(report_interrupt);
+    // Fill in our IDT with our handlers.
+    for (index, &opt_handler) in int_handlers.iter().enumerate() {
+        if let Some(handler) = opt_handler {
+            println!("SET {} {:?}", index, handler);
+            idt.table[index] = IdtEntry::new(handler);
+        }
     }
 
     // Load our IDT.

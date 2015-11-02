@@ -4,6 +4,9 @@
 extern crate rlibc;
 extern crate spin;
 
+// Needs to be visable to assebmly code.  This might not be the best way.
+pub use arch::interrupts::rust_interrupt_handler;
+
 #[macro_use]
 mod arch;
 
