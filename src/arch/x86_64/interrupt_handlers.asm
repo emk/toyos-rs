@@ -38,6 +38,8 @@ trace:
 ;;; they're large, complicated, and slow to save, and we want our interrupt
 ;;; handlers to be fast.  So we just don't use any of those processor
 ;;; features in kernel mode.
+;;;
+;;; This needs to be kept in sync with InterruptContext.
 %macro push_caller_saved 0
         ;; Save ordinary registers.
         push rax
@@ -69,19 +71,23 @@ trace:
 ;;; keep things aligned, and the the error code. See
 ;;; http://developer.amd.com/wordpress/media/2012/10/24593_APM_v21.pdf
 ;;; p. 247 "8.9 Long-Mode Interrupt Control Transfers".
+;;;
+;;; This needs to be kept in sync with InterruptContext.
 %macro int_entry_error 1
 int_entry_%1:
         ;; There's already qword error code here, which we're reponsible
         ;; for popping before IRET.
-        push qword $%1          ; Record interrupt ID.
+        push qword %1           ; Record interrupt ID.
         jmp int_shared          ; Now do the hard work for this interrupt.
 %endmacro
 
 ;;; For non-error interrupts, we push an error code of zero for consistency.
+;;;
+;;; This needs to be kept in sync with InterruptContext.
 %macro int_entry_dummy_error 1
 int_entry_%1:
-        push qword $0           ; Push error code of 0.
-        push qword $%1          ; Record interrupt ID.
+        push qword 0            ; Push error code of 0.
+        push qword %1           ; Record interrupt ID.
         jmp int_shared          ; Now do the hard work for this interrupt.
 %endmacro
 
@@ -131,10 +137,19 @@ int_entry_dummy_error 18
 int_entry_dummy_error 19
 ;;; 30 Security Exception
 
+;;; Fill in cutom handlers 32 through 255.
+int_entry_dummy_error 32
+%assign i 33
+%rep    224
+int_entry_dummy_error i
+%assign i i+1
+%endrep
+
 ;;; All of the interrupt table entries wind up here, and we call into Rust.
 int_shared:
         push_caller_saved
 
+        mov rdi, rsp            ; Pass pointer to interrupt data.
         call rust_interrupt_handler
 
         pop_caller_saved
@@ -186,3 +201,9 @@ int_handlers:
         dq 0
         dq 0                    ; int_entry_30
         dq 0
+        dq int_entry_32
+%assign i 33
+%rep    224
+        dq int_entry_%+i
+%assign i i+1
+%endrep

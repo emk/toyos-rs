@@ -15,22 +15,45 @@ use spin::Mutex;
 /// want.
 const IDT_ENTRY_COUNT: usize = 256;
 
+#[allow(dead_code)]
 extern {
     /// The offset of the main code segment in out GDT.  Exported by our
     /// assembly code.
     static gdt64_code_offset: u16;
 
     /// A primitive interrupt-reporting function.
-    #[allow(dead_code)]
     fn report_interrupt();
 
     /// Interrupt handlers which call back to rust_interrupt_handler.
-    static int_handlers: [Option<unsafe extern "C" fn()>; 16];
+    static int_handlers: [Option<unsafe extern "C" fn()>; IDT_ENTRY_COUNT];
+}
+
+#[repr(C, packed)]
+pub struct InterruptContext { // Only 'pub' because rust_interrupt_handler is.
+    rsi: u64,
+    rdi: u64,
+    r11: u64,
+    r10: u64,
+    r9: u64,
+    r8: u64,
+    rdx: u64,
+    rcx: u64,
+    rax: u64,
+    int_id: u32,
+    _pad_1: u32,
+    error_code: u32,
+    _pad_2: u32,
 }
 
 #[no_mangle]
-pub extern "C" fn rust_interrupt_handler() {
-    println!("Handling interrupt")
+pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
+    match ctx.int_id {
+        // 0x01 => ...keyboard...
+        0x21 => println!("This is not DOS!"),
+        _ => {
+            println!("UNKNOWN INTERRUPT #{}", ctx.int_id);
+        }
+    }
 }
 
 /// An entry in a 64-bit IDT table.  See the Intel manual mentioned above
@@ -133,7 +156,6 @@ pub fn initialize() {
     // Fill in our IDT with our handlers.
     for (index, &opt_handler) in int_handlers.iter().enumerate() {
         if let Some(handler) = opt_handler {
-            println!("SET {} {:?}", index, handler);
             idt.table[index] = IdtEntry::new(handler);
         }
     }
@@ -154,7 +176,7 @@ pub fn initialize() {
 pub fn test_interrupt() {
     println!("Triggering interrupt.");
     unsafe {
-        asm!("int $$0x01" :::: "volatile");
+        asm!("int $$0x21" :::: "volatile");
     }
     println!("Interrupt returned!");
 }
