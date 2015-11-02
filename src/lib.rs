@@ -8,6 +8,7 @@ extern crate spin;
 pub use arch::interrupts::rust_interrupt_handler;
 
 #[macro_use]
+mod macros;
 mod arch;
 
 #[no_mangle]
@@ -21,6 +22,8 @@ pub extern "C" fn rust_main() {
     println!("Hello, world!");
 
     arch::interrupts::initialize();
+
+    println!("Running.");
 
     loop {}
 }
