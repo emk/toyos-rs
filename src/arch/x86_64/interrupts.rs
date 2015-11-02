@@ -11,6 +11,8 @@
 use core::mem::size_of;
 use spin::Mutex;
 
+use arch::x86_64::pic;
+
 /// Maximum possible number of interrupts; we can shrink this later if we
 /// want.
 const IDT_ENTRY_COUNT: usize = 256;
@@ -48,11 +50,17 @@ pub struct InterruptContext { // Only 'pub' because rust_interrupt_handler is.
 #[no_mangle]
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
-        // 0x01 => ...keyboard...
-        0x21 => println!("This is not DOS!"),
+        0x20 => { /* Timer. */ },
+        0x21 => println!("Key!"),
+        0x80 => println!("Not actually Linux, sorry."),
         _ => {
             println!("UNKNOWN INTERRUPT #{}", ctx.int_id);
+            loop {}
         }
+    }
+
+    if 0x20 <= ctx.int_id && ctx.int_id < 0x30 {
+        unsafe { pic::end_of_interrupt(ctx.int_id as u8); }
     }
 }
 
@@ -139,7 +147,7 @@ struct IdtInfo {
 
 impl IdtInfo {
     /// Load this IDT
-    pub fn load(&self) {
+    pub unsafe fn load(&self) {
         unsafe {
             asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
         }
@@ -160,23 +168,28 @@ pub fn initialize() {
         }
     }
 
-    // Load our IDT.
-    idt.info().load();
+    unsafe {
+        // Load our IDT.
+        idt.info().load();
 
-    // Enable this to trigger a sample interrupt.
-    test_interrupt();
+        // Remap our PIC so I/O interrupts don't get confused with processor
+        // interrupts.  (Who designed this stuff?)
+        pic::remap();
 
-    // TODO: Actually enable interrupts.
+        // Enable this to trigger a sample interrupt.
+        test_interrupt();
+
+        // Turn on interrupts.
+        asm!("sti" :::: "volatile");
+    }
 }
 
 /// Use the `int` instruction to manually trigger an interrupt without
 /// actually using `sti` to enable interrupts.  This is highly recommended by
 /// http://jvns.ca/blog/2013/12/04/day-37-how-a-keyboard-works/
 #[allow(dead_code)]
-pub fn test_interrupt() {
+pub unsafe fn test_interrupt() {
     println!("Triggering interrupt.");
-    unsafe {
-        asm!("int $$0x21" :::: "volatile");
-    }
+    asm!("int $$0x80" :::: "volatile");
     println!("Interrupt returned!");
 }
