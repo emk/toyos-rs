@@ -58,7 +58,11 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
         }
         0x21 => {
             if let Some(input) = keyboard::read_char() {
-                println!("Key: {}", input);
+                if input == '\r' {
+                    println!("");
+                } else {
+                    print!("{}", input);
+                }
             }
         }
         0x80 => println!("Not actually Linux, sorry."),
