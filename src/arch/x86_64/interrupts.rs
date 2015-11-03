@@ -11,7 +11,7 @@
 use core::mem::size_of;
 use spin::Mutex;
 
-use arch::x86_64::pic;
+use arch::x86_64::{pic, keyboard};
 
 /// Maximum possible number of interrupts; we can shrink this later if we
 /// want.
@@ -51,7 +51,10 @@ pub struct InterruptContext { // Only 'pub' because rust_interrupt_handler is.
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
         0x20 => { /* Timer. */ },
-        0x21 => println!("Key!"),
+        0x21 => {
+            let input = keyboard::read_scancode();
+            println!("Key scancode: {:x}", input);
+        }
         0x80 => println!("Not actually Linux, sorry."),
         _ => {
             println!("UNKNOWN INTERRUPT #{}", ctx.int_id);
@@ -148,9 +151,7 @@ struct IdtInfo {
 impl IdtInfo {
     /// Load this IDT
     pub unsafe fn load(&self) {
-        unsafe {
-            asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
-        }
+        asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
     }
 }
 
