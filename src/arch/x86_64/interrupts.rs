@@ -189,7 +189,7 @@ pub fn initialize() {
 
         // Remap our PIC so I/O interrupts don't get confused with processor
         // interrupts.  (Who designed this stuff?)
-        pic::remap();
+        pic::initialize();
 
         // Enable this to trigger a sample interrupt.
         test_interrupt();

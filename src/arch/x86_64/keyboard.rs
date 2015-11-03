@@ -86,16 +86,28 @@ impl Modifiers {
     }
 }
 
-/// Our global modifier state.
-static MODIFIERS: Mutex<Modifiers> = Mutex::new(Modifiers::new());
+/// Our keyboard state, including our I/O port, our currently pressed
+/// modifiers, etc.
+struct State {
+    /// The PS/2 serial IO port for the keyboard.  There's a huge amount of
+    /// emulation going on at the hardware level to allow us to pretend to
+    /// be an early-80s IBM PC.
+    ///
+    /// We could read the standard keyboard port directly using
+    /// `inb(0x60)`, but it's nicer if we wrap it up in an `io::Port`
+    /// object.
+    port: io::Port<u8>,
 
-/// Read a single scancode off our keyboard using the processor's low-level
-/// serial interface and the standard PS/2 keyboard port.  There's a huge
-/// amount of emulation going on at the hardware level to allow us to
-/// pretend to be an early-80s IBM PC.
-fn read_scancode() -> u8 {
-    unsafe { io::inb(0x60) }
+    /// We also need to keep track of which modifier keys have been pressed
+    /// and released.
+    modifiers: Modifiers,
 }
+
+/// Our global keyboard state, protected by a mutex.
+static STATE: Mutex<State> = Mutex::new(State {
+    port: unsafe { io::Port::new(0x60) },
+    modifiers: Modifiers::new(),
+});
 
 /// Try to convert a scancode to an ASCII character.  If we don't recognize
 /// it, just return `None`.
@@ -113,17 +125,19 @@ fn find_ascii(scancode: u8) -> Option<u8> {
 
 /// Try to read a single input character
 pub fn read_char() -> Option<char> {
-    let mut mods = MODIFIERS.lock();
-    let scancode = read_scancode();
+    let mut state = STATE.lock();
+
+    // Read a single scancode off our keyboard port.
+    let scancode = state.port.read();
 
     // Give our modifiers first crack at this.
-    mods.update(scancode);
+    state.modifiers.update(scancode);
 
     // Look up the ASCII keycode.
     if let Some(ascii) = find_ascii(scancode) {
         // The `as char` converts our ASCII data to Unicode, which is
         // correct as long as we're only using 7-bit ASCII.
-        Some(mods.apply_to(ascii) as char)
+        Some(state.modifiers.apply_to(ascii) as char)
     } else {
         // Either this was a modifier key, or it some key we don't know how
         // to handle yet, or it's part of a multibyte scancode.  Just look
