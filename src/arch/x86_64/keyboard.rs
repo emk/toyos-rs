@@ -1,10 +1,13 @@
-//! Basic PS/2 keyboard driver.
+//! Basic PS/2 keyboard driver.  This needs to be split into a
+//! PS/2-specific driver, and a high-level portable driver.
 //!
 //! Scancode table available at http://wiki.osdev.org/Keyboard#Scan_Code_Set_1
 
 use spin::Mutex;
 use arch::x86_64::io;
 
+/// A pair of keys which appear on both the left and right sides of the
+/// keyboard, such as "left shift" and "right shift".
 #[derive(Debug)]
 struct KeyPair {
     left: bool,
@@ -12,15 +15,21 @@ struct KeyPair {
 }
 
 impl KeyPair {
+    /// Create a new key pair.  Normally, we'd use `#[derive(Default)]` and
+    /// `Default::default()` for this, but if we use those, we can't make
+    /// them `const`, which means we can't use them to initialize static
+    /// variables at compile time.  So let's reinvent this wheel.
     const fn new() -> Self {
         KeyPair { left: false, right: false }
     }
 
+    /// Is either of the keys in this pair currently pressed?
     fn is_pressed(&self) -> bool {
         self.left || self.right
     }
 }
 
+/// All of our supported keyboard modifiers.
 #[derive(Debug)]
 struct Modifiers {
     shift: KeyPair,
@@ -30,6 +39,7 @@ struct Modifiers {
 }
 
 impl Modifiers {
+    /// Create a new set of modifiers.  See notes about `Default` above.
     const fn new() -> Self {
         Modifiers {
             shift: KeyPair::new(),
@@ -39,10 +49,14 @@ impl Modifiers {
         }
     }
 
+    /// Given the current modifier state, should we convert letters to
+    /// uppercase?
     fn use_uppercase_letters(&self) -> bool {
         self.shift.is_pressed() ^ self.caps_lock
     }
 
+    /// Apply all of our modifiers to an ASCII character, and return a new
+    /// ASCII character.
     fn apply_to(&self, ascii: u8) -> u8 {
         if b'a' <= ascii && ascii <= b'z' {
             if self.use_uppercase_letters() {
@@ -52,12 +66,15 @@ impl Modifiers {
         ascii
     }
 
+    /// Given a keyboard scancode, update our current modifier state.
     fn update(&mut self, scancode: u8) {
         match scancode {
             0x1D => self.control.left = true,
             0x2A => self.shift.left = true,
             0x36 => self.shift.right = true,
             0x38 => self.alt.left = true,
+            /// Caps lock toggles on leading edge, instead of paying
+            /// attention to key up/down events.
             0x3A => self.caps_lock = !self.caps_lock,
             0x9D => self.control.left = false,
             0xAA => self.shift.left = false,
@@ -69,12 +86,19 @@ impl Modifiers {
     }
 }
 
+/// Our global modifier state.
 static MODIFIERS: Mutex<Modifiers> = Mutex::new(Modifiers::new());
 
+/// Read a single scancode off our keyboard using the processor's low-level
+/// serial interface and the standard PS/2 keyboard port.  There's a huge
+/// amount of emulation going on at the hardware level to allow us to
+/// pretend to be an early-80s IBM PC.
 fn read_scancode() -> u8 {
     unsafe { io::inb(0x60) }
 }
 
+/// Try to convert a scancode to an ASCII character.  If we don't recognize
+/// it, just return `None`.
 fn find_ascii(scancode: u8) -> Option<u8> {
     let idx = scancode as usize;
     match scancode {
@@ -87,6 +111,7 @@ fn find_ascii(scancode: u8) -> Option<u8> {
     }
 }
 
+/// Try to read a single input character
 pub fn read_char() -> Option<char> {
     let mut mods = MODIFIERS.lock();
     let scancode = read_scancode();
@@ -96,8 +121,13 @@ pub fn read_char() -> Option<char> {
 
     // Look up the ASCII keycode.
     if let Some(ascii) = find_ascii(scancode) {
+        // The `as char` converts our ASCII data to Unicode, which is
+        // correct as long as we're only using 7-bit ASCII.
         Some(mods.apply_to(ascii) as char)
     } else {
+        // Either this was a modifier key, or it some key we don't know how
+        // to handle yet, or it's part of a multibyte scancode.  Just look
+        // innocent and pretend nothing happened.
         None
     }
 }
