@@ -30,8 +30,11 @@ extern {
     static int_handlers: [Option<unsafe extern "C" fn()>; IDT_ENTRY_COUNT];
 }
 
+/// Data on our stack when handling an interrupt.
+///
+/// Only `pub` because `rust_interrupt_handler` is.
 #[repr(C, packed)]
-pub struct InterruptContext { // Only 'pub' because rust_interrupt_handler is.
+pub struct InterruptContext {
     rsi: u64,
     rdi: u64,
     r11: u64,
@@ -50,7 +53,9 @@ pub struct InterruptContext { // Only 'pub' because rust_interrupt_handler is.
 #[no_mangle]
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
-        0x20 => { /* Timer. */ },
+        0x20 => {
+            // Timer.
+        }
         0x21 => {
             let input = keyboard::read_scancode();
             println!("Key scancode: {:x}", input);
@@ -63,7 +68,9 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     }
 
     if 0x20 <= ctx.int_id && ctx.int_id < 0x30 {
-        unsafe { pic::end_of_interrupt(ctx.int_id as u8); }
+        unsafe {
+            pic::end_of_interrupt(ctx.int_id as u8);
+        }
     }
 }
 

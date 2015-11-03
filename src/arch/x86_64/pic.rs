@@ -44,6 +44,6 @@ pub unsafe fn remap() {
     outb(PIC2_DATA, saved_mask2);
 
     // Enable only keyboard interrupts for now.
-    //outb(PIC1_DATA, 0xfd);
-    //outb(PIC2_DATA, 0xff);
+    // outb(PIC1_DATA, 0xfd);
+    // outb(PIC2_DATA, 0xff);
 }
