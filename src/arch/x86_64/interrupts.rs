@@ -30,7 +30,7 @@ extern {
     static int_handlers: [Option<unsafe extern "C" fn()>; IDT_ENTRY_COUNT];
 }
 
-/// Data on our stack when handling an interrupt.
+/// Various data available on our stack when handling an interrupt.
 ///
 /// Only `pub` because `rust_interrupt_handler` is.
 #[repr(C, packed)]
@@ -50,6 +50,8 @@ pub struct InterruptContext {
     _pad_2: u32,
 }
 
+/// Called from our assembly-language interrupt handlers to dispatch an
+/// interrupt.
 #[no_mangle]
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
@@ -72,10 +74,8 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
         }
     }
 
-    if 0x20 <= ctx.int_id && ctx.int_id < 0x30 {
-        unsafe {
-            pic::end_of_interrupt(ctx.int_id as u8);
-        }
+    unsafe {
+        pic::finish_interrupt_if_pic(ctx.int_id as u8);
     }
 }
 
@@ -143,7 +143,7 @@ impl Idt {
         (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16
     }
 
-    /// An IdtInfo describing our IDT.
+    /// An IdtInfo describing our IDT's location and size.
     fn info(&self) -> IdtInfo {
         IdtInfo {
             limit: self.limit(),
@@ -161,14 +161,16 @@ struct IdtInfo {
 }
 
 impl IdtInfo {
-    /// Load this IDT
+    /// Load this IDT into our processor.
     pub unsafe fn load(&self) {
         asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
     }
 }
 
 /// Our global IDT.
-static IDT: Mutex<Idt> = Mutex::new(Idt { table: [IdtEntry::absent(); IDT_ENTRY_COUNT] });
+static IDT: Mutex<Idt> = Mutex::new(Idt {
+    table: [IdtEntry::absent(); IDT_ENTRY_COUNT]
+});
 
 /// Initialize interrupt handling.
 pub fn initialize() {
@@ -192,7 +194,7 @@ pub fn initialize() {
         // Enable this to trigger a sample interrupt.
         test_interrupt();
 
-        // Turn on interrupts.
+        // Turn on real interrupts.
         asm!("sti" :::: "volatile");
     }
 }
