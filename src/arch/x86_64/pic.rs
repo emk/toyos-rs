@@ -4,49 +4,46 @@
 
 use arch::x86_64::io::{inb, outb};
 
-const Pic1Command: u16 = 0x20;
-const Pic1Data: u16 = 0x21;
-const Pic2Command: u16 = 0xA0;
-const Pic2Data: u16 = 0xA1;
+const PIC1_COMMAND: u16 = 0x20;
+const PIC1_DATA: u16 = 0x21;
+const PIC2_COMMAND: u16 = 0xA0;
+const PIC2_DATA: u16 = 0xA1;
 
-const CmdInit: u8 = 0x11;
-const CmdEndOfInterrupt: u8 = 0x20;
+const CMD_INIT: u8 = 0x11;
+const CMD_END_OF_INTERRUPT: u8 = 0x20;
 
-const Pic1Offset: u8 = 0x20;
-const Pic2Offset: u8 = 0x28;
+const PIC1_OFFSET: u8 = 0x20;
+const PIC2_OFFSET: u8 = 0x28;
 
-const Mode8086: u8 = 0x01;
+const MODE_8086: u8 = 0x01;
 
 /// Acknowledge that we have finished processing our interrupt, so that we
 /// can get more.
 pub unsafe fn end_of_interrupt(int_id: u8) {
-    if int_id >= Pic2Offset {
-        outb(Pic2Command, CmdEndOfInterrupt);
+    if int_id >= PIC2_OFFSET {
+        outb(PIC2_COMMAND, CMD_END_OF_INTERRUPT);
     }
-    outb(Pic1Command, CmdEndOfInterrupt);
+    outb(PIC1_COMMAND, CMD_END_OF_INTERRUPT);
 }
 
 /// Remap our I/O interrupts from 
 pub unsafe fn remap() {
-    let saved_mask1 = inb(Pic1Data);
-    let saved_mask2 = inb(Pic2Data);
+    let saved_mask1 = inb(PIC1_DATA);
+    let saved_mask2 = inb(PIC2_DATA);
 
-    outb(Pic1Command, CmdInit);
-    outb(Pic2Command, CmdInit);
-    outb(Pic1Data, Pic1Offset);
-    outb(Pic2Data, Pic2Offset);
-    outb(Pic1Data, 4);
-    outb(Pic2Data, 2);
-    outb(Pic1Data, Mode8086);
-    outb(Pic2Data, Mode8086);
+    outb(PIC1_COMMAND, CMD_INIT);
+    outb(PIC2_COMMAND, CMD_INIT);
+    outb(PIC1_DATA, PIC1_OFFSET);
+    outb(PIC2_DATA, PIC2_OFFSET);
+    outb(PIC1_DATA, 4);
+    outb(PIC2_DATA, 2);
+    outb(PIC1_DATA, MODE_8086);
+    outb(PIC2_DATA, MODE_8086);
 
-    outb(Pic1Data, saved_mask1);
-    outb(Pic2Data, saved_mask2);
+    outb(PIC1_DATA, saved_mask1);
+    outb(PIC2_DATA, saved_mask2);
 
     // Enable only keyboard interrupts for now.
-    //outb(Pic1Data, 0xfd);
-    //outb(Pic2Data, 0xff);
-
-    //outb(Pic1Command, CmdEndOfInterrupt);
-    //outb(Pic2Command, CmdEndOfInterrupt);
+    //outb(PIC1_DATA, 0xfd);
+    //outb(PIC2_DATA, 0xff);
 }
