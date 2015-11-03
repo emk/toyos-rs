@@ -57,8 +57,9 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
             // Timer.
         }
         0x21 => {
-            let input = keyboard::read_scancode();
-            println!("Key scancode: {:x}", input);
+            if let Some(input) = keyboard::read_char() {
+                println!("Key: {}", input);
+            }
         }
         0x80 => println!("Not actually Linux, sorry."),
         _ => {
