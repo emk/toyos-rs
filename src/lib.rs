@@ -22,6 +22,7 @@ pub extern "C" fn rust_main() {
     println!("Hello, world!");
 
     arch::interrupts::initialize();
+    arch::pci::dump_devices();
 
     println!("Running.");
 
