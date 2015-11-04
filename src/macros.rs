@@ -7,7 +7,7 @@
 macro_rules! print {
     ($($arg:tt)*) => ({
             use core::fmt::Write;
-            $crate::arch::vga::SCREEN.lock().write_fmt(format_args!($($arg)*)).unwrap();
+            $crate::console::CONSOLE.lock().write_fmt(format_args!($($arg)*)).unwrap();
     });
 }
 

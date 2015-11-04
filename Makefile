@@ -32,11 +32,11 @@ clean:
 
 run: $(iso)
 	@echo QEMU $(iso)
-	@qemu-system-x86_64 -hda $(iso)
+	@qemu-system-x86_64 -hda $(iso) -serial stdio
 
 debug: $(iso)
 	@echo QEMU -d int $(iso)
-	@qemu-system-x86_64 -hda $(iso) -d int -no-reboot
+	@qemu-system-x86_64 -hda $(iso) -d int -no-reboot -serial stdio
 
 $(iso): $(kernel) $(grub_cfg)
 	@echo ISO $(iso)
