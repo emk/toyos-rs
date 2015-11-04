@@ -27,6 +27,20 @@ pub unsafe fn outb(port: u16, value: u8) {
     asm!("outb %al, %dx" :: "{dx}"(port), "{al}"(value) :: "volatile");
 }
 
+/// Read a `u16`-sized value from `port`.
+pub unsafe fn inw(port: u16) -> u16 {
+    // The registers for this instruction are always the same.
+    let result: u16;
+    asm!("inw %dx, %ax" : "={ax}"(result) : "{dx}"(port) :: "volatile");
+    result
+}
+
+/// Write a `u8`-sized `value` to `port`.
+pub unsafe fn outw(port: u16, value: u16) {
+    // The registers for this instruction are always the same.
+    asm!("outw %ax, %dx" :: "{dx}"(port), "{ax}"(value) :: "volatile");
+}
+
 /// Read a `u32`-sized value from `port`.
 pub unsafe fn inl(port: u16) -> u32 {
     // The registers for this instruction are always the same.
@@ -63,6 +77,11 @@ pub trait InOut {
 impl InOut for u8 {
     unsafe fn port_in(port: u16) -> u8 { inb(port) }
     unsafe fn port_out(port: u16, value: u8) { outb(port, value); }
+}
+
+impl InOut for u16 {
+    unsafe fn port_in(port: u16) -> u16 { inw(port) }
+    unsafe fn port_out(port: u16, value: u16) { outw(port, value); }
 }
 
 impl InOut for u32 {
