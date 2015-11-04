@@ -109,8 +109,27 @@ impl Screen {
             }
         }
         if self.y >= HEIGHT {
-            self.y = 0;
-            // TODO: Scroll.
+            self.y = HEIGHT - 1;
+            self.scroll();
+        }
+    }
+
+    fn scroll(&mut self) {
+        // We'll use character to clear newly exposed areas.
+        let clear = Char {
+            code: b' ',
+            colors: self.colors,
+        };
+
+        // Move existing lines up one.
+        let buffer: &mut _ = self.buffer();
+        for y in 1..HEIGHT {
+            buffer[y-1] = buffer[y];
+        }
+
+        // Clear the last line.
+        for x in 0..WIDTH {
+            buffer[HEIGHT-1][x] = clear;
         }
     }
 
