@@ -181,6 +181,33 @@ impl<'a> Heap<'a> {
         })
     }
 
+    /// The size of the blocks we allocate for a given order.
+    fn order_size(&self, order: usize) -> usize {
+        1 << (self.min_block_size_log2 as usize + order)
+    }
+
+    /// Split a `block` of order `order` down into a block of order
+    /// `order_needed`, placing any unused chunks on the free list.
+    unsafe fn split_free_block(
+        &mut self, block: *mut u8, mut order: usize, order_needed: usize)
+    {
+        // Get the size of our starting block.
+        let mut size_to_split = self.order_size(order);
+
+        // Progressively cut our block down to size.
+        while order > order_needed {
+            // Update our loop counters to describe a block half the size.
+            size_to_split >>= 1;
+            order -= 1;
+
+            // Insert the "upper half" of the block into the free list.
+            let split = block.offset(size_to_split as isize)
+                as *mut FreeBlock;
+            *split = FreeBlock::head(self.free_lists[order]);
+            self.free_lists[order] = split;
+        }
+    }
+
     /// Allocate a block of memory large enough to contain `size` bytes,
     /// and aligned on `align`.  This will return NULL if the `align` is
     /// greater than `MIN_HEAP_ALIGN`, if `align` is not a power of 2, or
@@ -188,48 +215,41 @@ impl<'a> Heap<'a> {
     ///
     /// All allocated memory must be passed to `deallocate` with the same
     /// `size` and `align` parameter, or else horrible things will happen.
-    pub unsafe fn allocate(
-        &mut self, size: usize, align: usize)
-        -> *mut u8
+    pub unsafe fn allocate(&mut self, size: usize, align: usize) -> *mut u8
     {
-        if let Some(order) = self.allocation_order(size, align) {
-            println!("allocating order {} for {}", order, size);
-            for mut try_order in order..self.free_lists.len() {
-                println!("trying order: {}", try_order);
-                if self.free_lists[try_order] != ptr::null_mut() {
-                    println!("found block of order: {}", try_order);
+        // Figure out which order block we need.
+        if let Some(order_needed) = self.allocation_order(size, align) {
+
+            // Start with the smallest acceptable block size, and search
+            // upwards until we reach blocks the size of the entire heap.
+            for order in order_needed..self.free_lists.len() {
+
+                // We found a block we can use!
+                if self.free_lists[order] != ptr::null_mut() {
 
                     // Get the pointer we're going to return, and remove
                     // the block from the free list.
-                    let allocated = self.free_lists[try_order] as *mut u8;
-                    self.free_lists[try_order] =
-                        (*self.free_lists[try_order]).next;
+                    let allocated = self.free_lists[order] as *mut u8;
+                    self.free_lists[order] =
+                        (*self.free_lists[order]).next;
 
-                    if try_order > order {
-                        println!("need to split {} times", try_order - order);
-
-                        let mut size_to_split =
-                            1 << (self.min_block_size_log2 as usize + try_order);
-
-                        // Split off any usused chunks of the block.
-                        while try_order > order {
-                            println!("splitting {} bytes at order {}",
-                                     size_to_split, try_order);
-                            size_to_split >>= 1;
-                            try_order -= 1;
-                            let split = allocated.offset(size_to_split)
-                                as *mut FreeBlock;
-                            *split =
-                                FreeBlock::head(self.free_lists[try_order]);
-                            self.free_lists[try_order] = split;
-                        }
+                    // If the block is too big, break it up.  This leaves
+                    // the address unchanged, because we always allocate at
+                    // the head of a block.
+                    if order > order_needed {
+                        self.split_free_block(allocated, order, order_needed);
                     }
 
+                    // We have an allocation, so quit now.
                     return allocated;
                 }
             }
+
+            // We couldn't find a large enough block for this allocation.
             ptr::null_mut()
         } else {
+            // We can't allocate a block with the specified size and
+            // alignment.
             ptr::null_mut()
         }
     }
@@ -267,7 +287,7 @@ mod test {
             let mut free_lists: [*mut FreeBlock; 5] = [0 as *mut _; 5];
             let heap = Heap::new(mem, heap_size, &mut free_lists);
 
-            // TODO: Can't align beyond MIN_HEAP_ALIGN.
+            // TEST NEEDED: Can't align beyond MIN_HEAP_ALIGN.
 
             // Can't align beyond heap_size.
             assert_eq!(None, heap.allocation_size(256, 256*2));
