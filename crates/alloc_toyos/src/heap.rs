@@ -18,7 +18,7 @@ pub struct Heap<'a> {
 }
 
 pub struct BlockHeader {
-    next: *mut u8,
+    next: *mut BlockHeader,
 }
 
 impl<'a> Heap<'a> {
@@ -57,21 +57,27 @@ impl<'a> Heap<'a> {
                    (2u32.pow(free_lists.len() as u32 - 1)) as usize,
                    heap_size);
 
+        // Zero out our free list pointers.
+        for ptr in free_lists.iter_mut() {
+            *ptr = ptr::null_mut();
+        }
+
         // Store all the info about our heap in our struct.
         let result = Heap {
             heap_base: heap_base,
             heap_size: heap_size,
-            free_lists: free_lists as &mut [*mut BlockHeader],
+            free_lists: free_lists,
             min_block_size: min_block_size,
             min_block_size_log2: min_block_size.log2(),
         };
 
         // Set up the first free list, which contains exactly
         // one block the size of the entire heap.
-        let header = result.heap_base as *mut BlockHeader;
-        (*header).next = ptr::null_mut();
-        let root_block_idx = result.free_lists.len() - 1;
-        result.free_lists[root_block_idx] = header;
+        let header_ptr = result.heap_base as *mut BlockHeader;
+        *header_ptr = BlockHeader::tail();
+        let root_block_idx = result.allocation_order(heap_size, 1)
+            .expect("Failed to calculate order for root heap block");
+        result.free_lists[root_block_idx] = header_ptr;
         
         // Return our newly-created heap.
         result
@@ -104,9 +110,9 @@ impl<'a> Heap<'a> {
         Some(size)
     }
 
-    pub fn allocation_order(&self, size: usize, align: usize) -> Option<u8> {
+    pub fn allocation_order(&self, size: usize, align: usize) -> Option<usize> {
         self.allocation_size(size, align).map(|s| {
-            s.log2() - self.min_block_size_log2
+            (s.log2() - self.min_block_size_log2) as usize
         })
     }
 
@@ -115,7 +121,18 @@ impl<'a> Heap<'a> {
         &mut self, size: usize, align: usize)
         -> *mut u8
     {
-        self.heap_base
+        if let Some(order) = self.allocation_order(size, align) {
+            for free_list in self.free_lists.iter_mut().skip(order) {
+                if *free_list != ptr::null_mut() {
+                    let allocated = (*free_list) as *mut u8;
+                    *free_list = (**free_list).next;
+                    return allocated;
+                }
+            }
+            ptr::null_mut()
+        } else {
+            ptr::null_mut()
+        }
     }
 
     #[allow(unused_variables)]
@@ -126,11 +143,17 @@ impl<'a> Heap<'a> {
     }
 }
 
+impl BlockHeader {
+    fn tail() -> BlockHeader {
+        BlockHeader { next: ptr::null_mut() }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    //use std::ptr;
+    use std::ptr;
 
     extern "C" {
         /// We need this to allocate aligned memory for our heap.
@@ -189,8 +212,14 @@ mod test {
             let bottom_small = heap.allocate(8, 8);
             assert_eq!(mem, bottom_small);
 
-            //let not_enough_space = heap.allocate(4096, heap_size);
-            //assert_eq!(ptr::null_mut(), not_enough_space);
+            let bigger_than_heap = heap.allocate(4096, heap_size);
+            assert_eq!(ptr::null_mut(), bigger_than_heap);
+
+            let bigger_than_free = heap.allocate(heap_size, heap_size);
+            assert_eq!(ptr::null_mut(), bigger_than_free);
+
+            //let second_small = heap.allocate(8, 8);
+            //assert_eq!(mem.offset(16), second_small);
 
             free(mem);
         }
