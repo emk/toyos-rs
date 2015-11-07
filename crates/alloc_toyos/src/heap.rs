@@ -1,11 +1,13 @@
 //! A simple heap based on a buddy allocator.
 
 use std::mem::size_of;
-use std::num::Wrapping;
 use std::ptr;
+
+use math::PowersOf2;
 
 const MIN_HEAP_ALIGN: usize = 4096;
 
+#[allow(dead_code)]
 pub struct Heap<'a> {
     heap_base: *mut u8,
     heap_size: usize,
@@ -35,7 +37,7 @@ impl<'a> Heap<'a> {
         let min_block_size = heap_size >> (free_lists.len()-1);
 
         // The heap must be aligned on a 4K bounday.
-        assert_eq!(heap_base as usize & 0xFFF, 0);
+        assert_eq!(heap_base as usize & (MIN_HEAP_ALIGN-1), 0);
 
         // The heap must be big enough to contain at least one block.
         assert!(heap_size >= min_block_size);
@@ -46,7 +48,7 @@ impl<'a> Heap<'a> {
 
         // The heap size must be a power of 2.  See:
         // http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
-        assert!(heap_size !=0 && (heap_size & (heap_size - 1)) == 0);
+        assert!(heap_size.is_power_of_2());
 
         // We must have one free list per possible heap block size.
         assert_eq!(min_block_size *
@@ -72,26 +74,27 @@ impl<'a> Heap<'a> {
         result
     }
 
+    #[allow(unused_variables)]
     pub unsafe fn allocate(
-        &mut self, mut size: usize, mut align: usize)
+        &mut self, size: usize, align: usize)
         -> *mut u8
     {
-        if align > 4096 {
-            // Bail immediately if we're asked for an alignment that we
-            // can't easily supply.
-            return ptr::null_mut();
-        } else if align > size {
-            // Satisfy large alignment requests by just allocating more
-            // memory.  Sorry.
-            size = align;
-        } else {
-            // Alignment should be guaranteed by heap layout.
-        }
-
+        //if align > 4096 {
+        //    // Bail immediately if we're asked for an alignment that we
+        //    // can't easily supply.
+        //    return ptr::null_mut();
+        //} else if align > size {
+        //    // Satisfy large alignment requests by just allocating more
+        //    // memory.  Sorry.
+        //    size = align;
+        //} else {
+        //    // Alignment should be guaranteed by heap layout.
+        //}
 
         self.heap_base
     }
 
+    #[allow(unused_variables)]
     pub unsafe fn deallocate(
         &mut self, ptr: *mut u8, old_size: usize, align: usize)
     {
@@ -102,7 +105,7 @@ impl<'a> Heap<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::ptr;
+    //use std::ptr;
 
     extern "C" {
         /// We need this to allocate aligned memory for our heap.
