@@ -1,4 +1,15 @@
-//! A simple heap based on a buddy allocator.
+//! A simple heap based on a buddy allocator.  For the theory of buddy
+//! allocators, see https://en.wikipedia.org/wiki/Buddy_memory_allocation
+//!
+//! The basic idea is that our heap size is a power of two, and the heap
+//! starts out as one giant free block.  When a memory allocation request
+//! is received, we round the requested size up to a power of two, and find
+//! the smallest available block we can use.  If the smallest free block is
+//! too big (more than twice as big as the memory we want to allocate), we
+//! split the smallest free block in half recursively until it's the right
+//! size.  This simplifies a lot of bookkeeping, because all our block
+//! sizes are a power of 2, which makes it easy to have one free list per
+//! block size.
 
 use std::cmp::max;
 use std::mem::size_of;
@@ -8,24 +19,72 @@ use math::PowersOf2;
 
 const MIN_HEAP_ALIGN: usize = 4096;
 
-#[allow(dead_code)]
+/// A free block in our heap.  This is actually a header that we store at
+/// the start of the block.  We don't store any size information in the
+/// header, because we a separate free block list for each block size.
+pub struct FreeBlock {
+    /// The next block in the free list, or NULL if this is the final
+    /// block.
+    next: *mut FreeBlock,
+}
+
+impl FreeBlock {
+    /// Construct a `FreeBlock` header pointing at `next`.  This is sort of
+    /// like `cons` in LISP, except that here, we're building a link list
+    /// with no data slot.  The "data" is actually the address at which we
+    /// store the `FreeBlock`!
+    ///
+    /// I use functional programming terminology (`head` and `tail`)
+    /// because these sorts of data structures are much easier to reason
+    /// about correctly in functional languages.
+    fn head(next: *mut FreeBlock) -> FreeBlock {
+        FreeBlock { next: next }
+    }
+
+    /// The final block in a `FreeBlock` list.
+    fn tail() -> FreeBlock {
+        FreeBlock { next: ptr::null_mut() }
+    }
+}
+
+/// The interface to a heap.  This data structure is stored _outside_ the
+/// heap somewhere, because every single byte of our heap is potentially
+/// available for allocation.
 pub struct Heap<'a> {
+    /// The base address of our heap.  This must be aligned on a
+    /// `MIN_HEAP_ALIGN` boundary.
     heap_base: *mut u8,
+
+    /// The space available in our heap.  This must be a power of 2.
     heap_size: usize,
-    free_lists: &'a mut [*mut BlockHeader],
+
+    /// The free lists for our heap.  The list at `free_lists[0]` contains
+    /// the smallest block size we can allocate, and the list at the end
+    /// can only contain a single free block the size of our entire heap,
+    /// and only when no memory is allocated.
+    free_lists: &'a mut [*mut FreeBlock],
+
+    /// Our minimum block size.  This is calculated based on `heap_size`
+    /// and the length of the provided `free_lists` array, and it must be
+    /// big enough to contain a `FreeBlock` header object.
     min_block_size: usize,
+
+    /// The log base 2 of our block size.  Cached here so we don't have to
+    /// recompute it on every allocation (but we haven't benchmarked the
+    /// performance gain).
     min_block_size_log2: u8,
 }
 
-pub struct BlockHeader {
-    next: *mut BlockHeader,
-}
-
 impl<'a> Heap<'a> {
+    /// Create a new heap.  `heap_base` must be aligned on a
+    /// `MIN_HEAP_ALIGN` boundary, `heap_size` must be a power of 2, and
+    /// `heap_size / 2.pow(free_lists.len()-1)` must be greater than or
+    /// equal to `size_of::<FreeBlock>()`.  Passing in invalid parameters
+    /// may do horrible things.
     pub unsafe fn new(
         heap_base: *mut u8,
         heap_size: usize,
-        free_lists: &mut [*mut BlockHeader])
+        free_lists: &mut [*mut FreeBlock])
         -> Heap
     {
         // The heap base must not be null.
@@ -46,7 +105,7 @@ impl<'a> Heap<'a> {
 
         // The smallest possible heap block must be big enough to contain
         // the block header.
-        assert!(min_block_size >= size_of::<BlockHeader>());
+        assert!(min_block_size >= size_of::<FreeBlock>());
 
         // The heap size must be a power of 2.  See:
         // http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
@@ -73,8 +132,8 @@ impl<'a> Heap<'a> {
 
         // Set up the first free list, which contains exactly
         // one block the size of the entire heap.
-        let header_ptr = result.heap_base as *mut BlockHeader;
-        *header_ptr = BlockHeader::tail();
+        let header_ptr = result.heap_base as *mut FreeBlock;
+        *header_ptr = FreeBlock::tail();
         let root_block_idx = result.allocation_order(heap_size, 1)
             .expect("Failed to calculate order for root heap block");
         result.free_lists[root_block_idx] = header_ptr;
@@ -87,7 +146,7 @@ impl<'a> Heap<'a> {
     /// request.  This is deterministic, and it does not depend on what
     /// we've already allocated.  In particular, it's important to be able
     /// to calculate the same `allocation_size` when freeing memory as we
-    /// did when allocating it, or
+    /// did when allocating it, or everything will break horribly.
     pub fn allocation_size(&self, mut size: usize, align: usize) -> Option<usize> {
         // Sorry, we don't support weird alignments.
         if !align.is_power_of_2() { return None; }
@@ -113,13 +172,22 @@ impl<'a> Heap<'a> {
         Some(size)
     }
 
+    /// The "order" of an allocation is how many times we need to double
+    /// `min_block_size` in order to get a large enough block, as well as
+    /// the index we use into `free_lists`.
     pub fn allocation_order(&self, size: usize, align: usize) -> Option<usize> {
         self.allocation_size(size, align).map(|s| {
             (s.log2() - self.min_block_size_log2) as usize
         })
     }
 
-    #[allow(unused_variables)]
+    /// Allocate a block of memory large enough to contain `size` bytes,
+    /// and aligned on `align`.  This will return NULL if the `align` is
+    /// greater than `MIN_HEAP_ALIGN`, if `align` is not a power of 2, or
+    /// if we can't find enough memory.
+    ///
+    /// All allocated memory must be passed to `deallocate` with the same
+    /// `size` and `align` parameter, or else horrible things will happen.
     pub unsafe fn allocate(
         &mut self, size: usize, align: usize)
         -> *mut u8
@@ -150,9 +218,9 @@ impl<'a> Heap<'a> {
                             size_to_split >>= 1;
                             try_order -= 1;
                             let split = allocated.offset(size_to_split)
-                                as *mut BlockHeader;
+                                as *mut FreeBlock;
                             *split =
-                                BlockHeader::head(self.free_lists[try_order]);
+                                FreeBlock::head(self.free_lists[try_order]);
                             self.free_lists[try_order] = split;
                         }
                     }
@@ -166,21 +234,14 @@ impl<'a> Heap<'a> {
         }
     }
 
+    /// Deallocate a block allocated using `allocate`.  Note that the
+    /// `old_size` and `align` values must match the values passed to
+    /// `allocate`, or our heap will be corrupted.
     #[allow(unused_variables)]
     pub unsafe fn deallocate(
         &mut self, ptr: *mut u8, old_size: usize, align: usize)
     {
         // Ah, who cares?  We have lots of RAM.
-    }
-}
-
-impl BlockHeader {
-    fn head(next: *mut BlockHeader) -> BlockHeader {
-        BlockHeader { next: next }
-    }
-
-    fn tail() -> BlockHeader {
-        BlockHeader { next: ptr::null_mut() }
     }
 }
 
@@ -203,7 +264,7 @@ mod test {
         unsafe {
             let heap_size = 256;
             let mem = memalign(4096, heap_size);
-            let mut free_lists: [*mut BlockHeader; 5] = [0 as *mut _; 5];
+            let mut free_lists: [*mut FreeBlock; 5] = [0 as *mut _; 5];
             let heap = Heap::new(mem, heap_size, &mut free_lists);
 
             // TODO: Can't align beyond MIN_HEAP_ALIGN.
@@ -241,7 +302,7 @@ mod test {
         unsafe {
             let heap_size = 256;
             let mem = memalign(4096, heap_size);
-            let mut free_lists: [*mut BlockHeader; 5] = [0 as *mut _; 5];
+            let mut free_lists: [*mut FreeBlock; 5] = [0 as *mut _; 5];
             let mut heap = Heap::new(mem, heap_size, &mut free_lists);
 
             let block_16_0 = heap.allocate(8, 8);
