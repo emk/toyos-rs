@@ -1,5 +1,6 @@
 //! A simple heap based on a buddy allocator.
 
+use std::cmp::max;
 use std::mem::size_of;
 use std::ptr;
 
@@ -13,6 +14,7 @@ pub struct Heap<'a> {
     heap_size: usize,
     free_lists: &'a mut [*mut BlockHeader],
     min_block_size: usize,
+    min_block_size_log2: u8,
 }
 
 pub struct BlockHeader {
@@ -61,6 +63,7 @@ impl<'a> Heap<'a> {
             heap_size: heap_size,
             free_lists: free_lists as &mut [*mut BlockHeader],
             min_block_size: min_block_size,
+            min_block_size_log2: min_block_size.log2(),
         };
 
         // Set up the first free list, which contains exactly
@@ -74,23 +77,44 @@ impl<'a> Heap<'a> {
         result
     }
 
+    /// Figure out what size block we'll need to fulfill an allocation
+    /// request.  This is deterministic, and it does not depend on what
+    /// we've already allocated.  In particular, it's important to be able
+    /// to calculate the same `allocation_size` when freeing memory as we
+    /// did when allocating it, or
+    pub fn allocation_size(&self, mut size: usize, align: usize) -> Option<usize> {
+        // We can't align any more precisely than our heap base alignment
+        // without getting much too clever, so don't bother.
+        if align > MIN_HEAP_ALIGN { return None; }
+
+        // We're automatically aligned to `size` because of how our heap is
+        // sub-divided, but if we need a larger alignment, we can only do
+        // it be allocating more memory.
+        if align > size { size = align; }
+
+        // We can't allocate blocks smaller than `min_block_size`.
+        size = max(size, self.min_block_size);
+
+        // Round up to the next power of two.
+        size = size.next_power_of_2();
+
+        // We can't allocate a block bigger than our heap.
+        if size > self.heap_size { return None; }
+
+        Some(size)
+    }
+
+    pub fn allocation_order(&self, size: usize, align: usize) -> Option<u8> {
+        self.allocation_size(size, align).map(|s| {
+            s.log2() - self.min_block_size_log2
+        })
+    }
+
     #[allow(unused_variables)]
     pub unsafe fn allocate(
         &mut self, size: usize, align: usize)
         -> *mut u8
     {
-        //if align > 4096 {
-        //    // Bail immediately if we're asked for an alignment that we
-        //    // can't easily supply.
-        //    return ptr::null_mut();
-        //} else if align > size {
-        //    // Satisfy large alignment requests by just allocating more
-        //    // memory.  Sorry.
-        //    size = align;
-        //} else {
-        //    // Alignment should be guaranteed by heap layout.
-        //}
-
         self.heap_base
     }
 
@@ -105,6 +129,7 @@ impl<'a> Heap<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+
     //use std::ptr;
 
     extern "C" {
@@ -116,12 +141,49 @@ mod test {
     }
 
     #[test]
+    fn test_allocation_size_and_order() {
+        unsafe {
+            let heap_size = 256;
+            let mem = memalign(4096, heap_size);
+            let mut free_lists: [*mut BlockHeader; 5] = [0 as *mut _; 5];
+            let heap = Heap::new(mem, heap_size, &mut free_lists);
+
+            // TODO: Can't align beyond MIN_HEAP_ALIGN.
+
+            // Can't align beyond heap_size.
+            assert_eq!(None, heap.allocation_size(256, 256*2));
+
+            // Simple allocations just round up to next block size.
+            assert_eq!(Some(16), heap.allocation_size(0, 1));
+            assert_eq!(Some(16), heap.allocation_size(1, 1));
+            assert_eq!(Some(16), heap.allocation_size(16, 1));
+            assert_eq!(Some(32), heap.allocation_size(17, 1));
+            assert_eq!(Some(32), heap.allocation_size(32, 32));
+            assert_eq!(Some(256), heap.allocation_size(256, 256));
+
+            // Aligned allocations use alignment as block size.
+            assert_eq!(Some(64), heap.allocation_size(16, 64));
+
+            // Block orders.
+            assert_eq!(Some(0), heap.allocation_order(0, 1));
+            assert_eq!(Some(0), heap.allocation_order(1, 1));
+            assert_eq!(Some(0), heap.allocation_order(16, 16));
+            assert_eq!(Some(1), heap.allocation_order(32, 32));
+            assert_eq!(Some(2), heap.allocation_order(64, 64));
+            assert_eq!(Some(3), heap.allocation_order(128, 128));
+            assert_eq!(Some(4), heap.allocation_order(256, 256));
+            assert_eq!(None, heap.allocation_order(512, 512));
+
+            free(mem);
+        }
+    }
+
+    #[test]
     fn test_heap() {
         unsafe {
             let heap_size = 256;
             let mem = memalign(4096, heap_size);
             let mut free_lists: [*mut BlockHeader; 5] = [0 as *mut _; 5];
-
             let mut heap = Heap::new(mem, heap_size, &mut free_lists);
 
             let bottom_small = heap.allocate(8, 8);
