@@ -89,6 +89,9 @@ impl<'a> Heap<'a> {
     /// to calculate the same `allocation_size` when freeing memory as we
     /// did when allocating it, or
     pub fn allocation_size(&self, mut size: usize, align: usize) -> Option<usize> {
+        // Sorry, we don't support weird alignments.
+        if !align.is_power_of_2() { return None; }
+
         // We can't align any more precisely than our heap base alignment
         // without getting much too clever, so don't bother.
         if align > MIN_HEAP_ALIGN { return None; }
@@ -122,10 +125,38 @@ impl<'a> Heap<'a> {
         -> *mut u8
     {
         if let Some(order) = self.allocation_order(size, align) {
-            for free_list in self.free_lists.iter_mut().skip(order) {
-                if *free_list != ptr::null_mut() {
-                    let allocated = (*free_list) as *mut u8;
-                    *free_list = (**free_list).next;
+            println!("allocating order {} for {}", order, size);
+            for mut try_order in order..self.free_lists.len() {
+                println!("trying order: {}", try_order);
+                if self.free_lists[try_order] != ptr::null_mut() {
+                    println!("found block of order: {}", try_order);
+
+                    // Get the pointer we're going to return, and remove
+                    // the block from the free list.
+                    let allocated = self.free_lists[try_order] as *mut u8;
+                    self.free_lists[try_order] =
+                        (*self.free_lists[try_order]).next;
+
+                    if try_order > order {
+                        println!("need to split {} times", try_order - order);
+
+                        let mut size_to_split =
+                            1 << (self.min_block_size_log2 as usize + try_order);
+
+                        // Split off any usused chunks of the block.
+                        while try_order > order {
+                            println!("splitting {} bytes at order {}",
+                                     size_to_split, try_order);
+                            size_to_split >>= 1;
+                            try_order -= 1;
+                            let split = allocated.offset(size_to_split)
+                                as *mut BlockHeader;
+                            *split =
+                                BlockHeader::head(self.free_lists[try_order]);
+                            self.free_lists[try_order] = split;
+                        }
+                    }
+
                     return allocated;
                 }
             }
@@ -144,6 +175,10 @@ impl<'a> Heap<'a> {
 }
 
 impl BlockHeader {
+    fn head(next: *mut BlockHeader) -> BlockHeader {
+        BlockHeader { next: next }
+    }
+
     fn tail() -> BlockHeader {
         BlockHeader { next: ptr::null_mut() }
     }
@@ -209,8 +244,8 @@ mod test {
             let mut free_lists: [*mut BlockHeader; 5] = [0 as *mut _; 5];
             let mut heap = Heap::new(mem, heap_size, &mut free_lists);
 
-            let bottom_small = heap.allocate(8, 8);
-            assert_eq!(mem, bottom_small);
+            let block_16_0 = heap.allocate(8, 8);
+            assert_eq!(mem, block_16_0);
 
             let bigger_than_heap = heap.allocate(4096, heap_size);
             assert_eq!(ptr::null_mut(), bigger_than_heap);
@@ -218,8 +253,23 @@ mod test {
             let bigger_than_free = heap.allocate(heap_size, heap_size);
             assert_eq!(ptr::null_mut(), bigger_than_free);
 
-            //let second_small = heap.allocate(8, 8);
-            //assert_eq!(mem.offset(16), second_small);
+            let block_16_1 = heap.allocate(8, 8);
+            assert_eq!(mem.offset(16), block_16_1);
+
+            let block_16_2 = heap.allocate(8, 8);
+            assert_eq!(mem.offset(32), block_16_2);
+
+            let block_32_1 = heap.allocate(32, 32);
+            assert_eq!(mem.offset(64), block_32_1);
+
+            let block_16_3 = heap.allocate(8, 8);
+            assert_eq!(mem.offset(48), block_16_3);
+
+            let block_128_1 = heap.allocate(128, 128);
+            assert_eq!(mem.offset(128), block_128_1);
+
+            let too_fragmented = heap.allocate(64, 64);
+            assert_eq!(ptr::null_mut(), too_fragmented);
 
             free(mem);
         }
