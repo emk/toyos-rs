@@ -1,0 +1,11 @@
+# This Cargo.toml file is used for testing this library on the host system,
+# but when we compile for the target, we just compile `src/lib.rs`
+# directly.
+
+[package]
+name = "alloc_toyos"
+version = "0.1.0"
+authors = ["Eric Kidd <git@randomhacks.net>"]
+
+[lib]
+path = "src/lib_std.rs"
