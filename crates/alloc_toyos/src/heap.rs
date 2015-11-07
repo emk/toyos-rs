@@ -40,11 +40,6 @@ impl FreeBlock {
     fn head(next: *mut FreeBlock) -> FreeBlock {
         FreeBlock { next: next }
     }
-
-    /// The final block in a `FreeBlock` list.
-    fn tail() -> FreeBlock {
-        FreeBlock { next: ptr::null_mut() }
-    }
 }
 
 /// The interface to a heap.  This data structure is stored _outside_ the
@@ -53,6 +48,7 @@ impl FreeBlock {
 pub struct Heap<'a> {
     /// The base address of our heap.  This must be aligned on a
     /// `MIN_HEAP_ALIGN` boundary.
+    #[allow(dead_code)]
     heap_base: *mut u8,
 
     /// The space available in our heap.  This must be a power of 2.
@@ -122,7 +118,7 @@ impl<'a> Heap<'a> {
         }
 
         // Store all the info about our heap in our struct.
-        let result = Heap {
+        let mut result = Heap {
             heap_base: heap_base,
             heap_size: heap_size,
             free_lists: free_lists,
@@ -130,13 +126,11 @@ impl<'a> Heap<'a> {
             min_block_size_log2: min_block_size.log2(),
         };
 
-        // Set up the first free list, which contains exactly
-        // one block the size of the entire heap.
-        let header_ptr = result.heap_base as *mut FreeBlock;
-        *header_ptr = FreeBlock::tail();
-        let root_block_idx = result.allocation_order(heap_size, 1)
+        // Insert the entire heap onto the appropriate free list as a
+        // single block.
+        let order = result.allocation_order(heap_size, 1)
             .expect("Failed to calculate order for root heap block");
-        result.free_lists[root_block_idx] = header_ptr;
+        result.free_list_insert(order, heap_base);
         
         // Return our newly-created heap.
         result
@@ -186,6 +180,24 @@ impl<'a> Heap<'a> {
         1 << (self.min_block_size_log2 as usize + order)
     }
 
+    /// Pop a block off the appropriate free list.
+    unsafe fn free_list_pop(&mut self, order: usize) -> Option<*mut u8> {
+        let candidate = self.free_lists[order];
+        if candidate != ptr::null_mut() {
+            self.free_lists[order] = (*candidate).next;
+            Some(candidate as *mut u8)
+        } else {
+            None
+        }
+    }
+
+    /// Insert `block` of order `order` onto the appropriate free list.
+    unsafe fn free_list_insert(&mut self, order: usize, block: *mut u8) {
+        let free_block_ptr = block as *mut FreeBlock;
+        *free_block_ptr = FreeBlock::head(self.free_lists[order]);
+        self.free_lists[order] = free_block_ptr;
+    }
+
     /// Split a `block` of order `order` down into a block of order
     /// `order_needed`, placing any unused chunks on the free list.
     unsafe fn split_free_block(
@@ -201,10 +213,8 @@ impl<'a> Heap<'a> {
             order -= 1;
 
             // Insert the "upper half" of the block into the free list.
-            let split = block.offset(size_to_split as isize)
-                as *mut FreeBlock;
-            *split = FreeBlock::head(self.free_lists[order]);
-            self.free_lists[order] = split;
+            let split = block.offset(size_to_split as isize);
+            self.free_list_insert(order, split);
         }
     }
 
@@ -224,24 +234,18 @@ impl<'a> Heap<'a> {
             // upwards until we reach blocks the size of the entire heap.
             for order in order_needed..self.free_lists.len() {
 
-                // We found a block we can use!
-                if self.free_lists[order] != ptr::null_mut() {
-
-                    // Get the pointer we're going to return, and remove
-                    // the block from the free list.
-                    let allocated = self.free_lists[order] as *mut u8;
-                    self.free_lists[order] =
-                        (*self.free_lists[order]).next;
+                // Do we have a block of this size?
+                if let Some(block) = self.free_list_pop(order) {
 
                     // If the block is too big, break it up.  This leaves
                     // the address unchanged, because we always allocate at
                     // the head of a block.
                     if order > order_needed {
-                        self.split_free_block(allocated, order, order_needed);
+                        self.split_free_block(block, order, order_needed);
                     }
 
                     // We have an allocation, so quit now.
-                    return allocated;
+                    return block;
                 }
             }
 
