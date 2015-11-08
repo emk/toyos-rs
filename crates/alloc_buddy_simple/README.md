@@ -27,7 +27,7 @@ You can pull this into a Cargo build using:
 
 ```
 [dependencies.alloc_buddy_simple]
-git = "https://github.com/emk/toyos.rs.git
+git = "https://github.com/emk/toyos.rs"
 features = ["use-as-rust-allocator"]
 ```
 
