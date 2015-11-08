@@ -72,8 +72,8 @@ directory and copy them into
 equivalent directory on your system.  For example code, see
 [the toyos `Makefile`][Makefile].
 
-You may also want to apply the [barebones nofp patch][nofp] if your kernel
-space does not support
+You may also want to apply the [barebones nofp patch][nofp] to `libcore` if
+your kernel space does not support floating point.
 
 [Makefile]: https://github.com/emk/toyos.rs/blob/master/Makefile
 [nofp]: https://github.com/thepowersgang/rust-barebones-kernel/blob/master/libcore_nofp.patch
