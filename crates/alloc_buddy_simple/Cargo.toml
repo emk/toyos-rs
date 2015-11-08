@@ -3,6 +3,13 @@ name = "alloc_buddy_simple"
 version = "0.1.0"
 authors = ["Eric Kidd <git@randomhacks.net>"]
 
+description = "Simple, drop-in replacement allocator for Rust running on bare metal (no_std)"
+homepage = "https://github.com/emk/toyos.rs/tree/master/crates/alloc_buddy_simple"
+repository = "https://github.com/emk/toyos.rs"
+readme = "README.md"
+keywords = ["no_std", "kernel", "allocator"]
+license = "Apache-2.0/MIT"
+
 [features]
 
 # When this feature is enabled, build this crate as the actual Rust system
@@ -11,4 +18,4 @@ authors = ["Eric Kidd <git@randomhacks.net>"]
 use-as-rust-allocator = ["spin"]
 
 [dependencies]
-spin = { version = "*", optional = true }
+spin = { version = "^0.3.4", optional = true }
