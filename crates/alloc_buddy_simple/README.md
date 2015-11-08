@@ -10,6 +10,17 @@ you just want to use a `Vec` or two at startup time, on a well-understood
 system, it's very convenient, and maybe you're willing to live with the
 consequences.
 
+This is a simple [buddy allocator][] that you can use a drop-in replacement
+for Rust's regular allocators.  It's highly experimental and may corrupt
+your data, panic your machine, etc.  But it appears to be enough to make
+`Vec::push` work, at least in _extremely_ limited testing.
+
+There is a test suite which attempts to allocate and deallocate a bunch of
+memory, and which tries to make sure everything winds up at the expected
+location in memory each time.
+
+[buddy allocator]: https://en.wikipedia.org/wiki/Buddy_memory_allocation
+
 ## Using this allocator
 
 You can pull this into a Cargo build using:
