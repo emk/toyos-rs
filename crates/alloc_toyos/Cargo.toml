@@ -1,8 +1,14 @@
-# This Cargo.toml file is used for testing this library on the host system,
-# but when we compile for the target, we just compile `src/lib.rs`
-# directly.
-
 [package]
 name = "alloc_toyos"
 version = "0.1.0"
 authors = ["Eric Kidd <git@randomhacks.net>"]
+
+[features]
+
+# When this feature is enabled, build this crate as the actual Rust system
+# allocator.  This also requires pulling in a spinlock crate, to control
+# access to the shared heap.
+use-as-rust-allocator = ["spin"]
+
+[dependencies]
+spin = { version = "*", optional = true }
