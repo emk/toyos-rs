@@ -1,21 +1,28 @@
-//! Main library file for standalone testing.  See `lib.rs` for the file we
-//! use when linked into the kernel.
+//! A simple heap based on a buddy allocator.  For the theory of buddy
+//! allocators, see https://en.wikipedia.org/wiki/Buddy_memory_allocation
+//!
+//! This can either be used as a standalone library, or as a replacement
+//! for Rust's system allocator.  It runs on top of `libcore`, so it can be
+//! used on bare metal or in kernel space.
+//!
+//! Note that our `Heap` API is unstable.
 
 #![feature(no_std)]
 #![cfg_attr(not(test), feature(core_slice_ext))]
 #![no_std]
 
-#![cfg_attr(feature = "use-as-rust-allocator", feature(allocator))]
+#![cfg_attr(feature = "use-as-rust-allocator", feature(allocator, const_fn))]
 #![cfg_attr(feature = "use-as-rust-allocator", allocator)]
 
-#![cfg(feature = "use-as-rust-allocator")]
+#[cfg(feature = "use-as-rust-allocator")]
 extern crate spin;
 
 #[cfg(feature = "use-as-rust-allocator")]
 pub use integration::*;
+pub use heap::Heap;
 
 mod math;
-pub mod heap;
+mod heap;
 
 #[cfg(feature = "use-as-rust-allocator")]
 mod integration;
