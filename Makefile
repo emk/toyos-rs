@@ -14,12 +14,6 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
-libcore_nofp_patch := build/libcore_nofp.patch
-libcore_nofp_url := \
-	https://raw.githubusercontent.com/thepowersgang/rust-barebones-kernel/master/libcore_nofp.patch
-installed_target_libs := \
-	~/.multirust/toolchains/nightly/lib/rustlib/$(target)/lib
-
 .PHONY: all fmt clean run debug iso cargo
 
 all: $(kernel)
@@ -65,14 +59,29 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 #==========================================================================
 # Building the Rust runtime for our bare-metal target
 
+libcore_nofp_patch := build/libcore_nofp.patch
+
+libcore_nofp_url := \
+	https://raw.githubusercontent.com/thepowersgang/rust-barebones-kernel/master/libcore_nofp.patch
+
+installed_target_libs := \
+	~/.multirust/toolchains/nightly/lib/rustlib/$(target)/lib
+
+runtime_rlibs := \
+	$(installed_target_libs)/libcore.rlib \
+	$(installed_target_libs)/liballoc.rlib \
+	$(installed_target_libs)/librustc_unicode.rlib \
+	$(installed_target_libs)/libcollections.rlib
+
 RUSTC := \
 	rustc --verbose --target $(target) \
 		-Z no-landing-pads \
+		--cfg disable_float \
 		--out-dir $(installed_target_libs)
 
-.PHONY: runtime patch core alloc rustc_unicode collections
+.PHONY: runtime 
 
-runtime: core alloc rustc_unicode collections
+runtime: $(runtime_rlibs)
 
 patch: $(libcore_nofp_patch)
 	@echo Patching libcore to remove floating point.
@@ -83,22 +92,9 @@ $(libcore_nofp_patch):
 	@mkdir -p $(shell dirname $(libcore_nofp_patch))
 	@curl -o $(libcore_nofp_patch) $(libcore_nofp_url)
 
-core:
-	@echo RUSTC libcore
+$(installed_target_libs):
 	@mkdir -p $(installed_target_libs)
-	@$(RUSTC) --cfg disable_float rust/src/libcore/lib.rs
 
-alloc:
-	@echo RUSTC liballoc
-	@mkdir -p $(installed_target_libs)
-	@$(RUSTC) rust/src/liballoc/lib.rs
-
-rustc_unicode:
-	@echo RUSTC librustc_unicode
-	@mkdir -p $(installed_target_libs)
-	@$(RUSTC) rust/src/librustc_unicode/lib.rs
-
-collections:
-	@echo RUSTC libcollections
-	@mkdir -p $(installed_target_libs)
-	@$(RUSTC) rust/src/libcollections/lib.rs
+$(installed_target_libs)/%.rlib: rust/src/%/lib.rs $(installed_target_libs)
+	@echo RUSTC $<
+	@$(RUSTC) $<

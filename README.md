@@ -33,12 +33,12 @@ git clone https://github.com/rust-lang/rust
 (cd rust && git checkout 2e07996a9)
 ```
 
-Now you can try to patch `libcore` and install it where `rustc` and `cargo`
-will find it:
+Now you can try to patch `libcore` and install a set of basic runtime
+libraries where `rustc` and `cargo` will find them:
 
 ```
 make patch
-make core
+make runtime
 ```
 
 You may need to manually fix the `libcore` build to hide any new `f32` or
