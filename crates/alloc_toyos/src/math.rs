@@ -1,6 +1,7 @@
-use std::mem::size_of;
-use std::num::Wrapping;
+use core::mem::size_of;
+use core::num::Wrapping;
 
+/// Basic power-of-2 integer math.
 pub trait PowersOf2 {
     fn is_power_of_2(self) -> bool;
     fn next_power_of_2(self) -> usize;

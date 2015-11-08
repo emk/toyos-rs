@@ -11,9 +11,9 @@
 //! sizes are a power of 2, which makes it easy to have one free list per
 //! block size.
 
-use std::cmp::{max, min};
-use std::mem::size_of;
-use std::ptr;
+use core::cmp::{max, min};
+use core::mem::size_of;
+use core::ptr;
 
 use math::PowersOf2;
 
@@ -351,7 +351,7 @@ impl<'a> Heap<'a> {
 mod test {
     use super::*;
 
-    use std::ptr;
+    use core::ptr;
 
     extern "C" {
         /// We need this to allocate aligned memory for our heap.

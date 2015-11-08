@@ -6,6 +6,3 @@
 name = "alloc_toyos"
 version = "0.1.0"
 authors = ["Eric Kidd <git@randomhacks.net>"]
-
-[lib]
-path = "src/lib_std.rs"
