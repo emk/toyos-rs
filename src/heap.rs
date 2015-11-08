@@ -4,7 +4,7 @@
 //! undefined behavior and thus nasal demons as far as `rustc` is
 //! concerned.
 
-use alloc_toyos;
+use alloc_buddy_simple::{FreeBlock, initialize_allocator};
 
 extern {
     /// The bottom of our heap.  Declared in `boot.asm` so that we can
@@ -21,7 +21,7 @@ extern {
 
 /// An array of free lists which we pass to the system allocator at system
 /// startup time.
-static mut FREE_LISTS: [*mut alloc_toyos::FreeBlock; 19] = [0 as *mut _; 19];
+static mut FREE_LISTS: [*mut FreeBlock; 19] = [0 as *mut _; 19];
 
 /// Initialze our system heap.  Once this is done, it's theoretically safe
 /// to use functions in libcollection that allocate memory.
@@ -33,7 +33,5 @@ pub unsafe fn initialize() {
 
     // Initialize our main allocator library.
     let heap_size = heap_top_ptr as usize - heap_bottom_ptr as usize;
-    alloc_toyos::initialize_allocator(heap_bottom_ptr,
-                                      heap_size,
-                                      &mut FREE_LISTS);    
+    initialize_allocator(heap_bottom_ptr, heap_size, &mut FREE_LISTS);
 }

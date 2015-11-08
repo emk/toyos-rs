@@ -5,7 +5,7 @@ extern crate collections;
 
 extern crate rlibc;
 extern crate spin;
-extern crate alloc_toyos;
+extern crate alloc_buddy_simple;
 
 use core::fmt::Write;
 
@@ -36,7 +36,9 @@ pub extern "C" fn rust_main() {
 
     let mut vec = collections::vec::Vec::<u8>::new();
     vec.push(1);
-    println!("{:?}", vec);
+    vec.push(2);
+    vec.push(3);
+    println!("Hey, I made a vector in kernel space! {:?}", vec);
 
     println!("Scanning PCI bus...");
     for function in arch::pci::functions() {

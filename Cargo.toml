@@ -17,6 +17,6 @@ rlibc = "*"
 # Spinlocks.
 spin = "*"
 
-[dependencies.alloc_toyos]
-path = "crates/alloc_toyos"
+[dependencies.alloc_buddy_simple]
+path = "crates/alloc_buddy_simple"
 features = ["use-as-rust-allocator"]

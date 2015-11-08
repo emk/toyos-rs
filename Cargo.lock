@@ -2,13 +2,13 @@
 name = "toyos"
 version = "0.1.0"
 dependencies = [
- "alloc_toyos 0.1.0",
+ "alloc_buddy_simple 0.1.0",
  "rlibc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "spin 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "alloc_toyos"
+name = "alloc_buddy_simple"
 version = "0.1.0"
 dependencies = [
  "spin 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
