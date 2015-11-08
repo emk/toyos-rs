@@ -211,12 +211,26 @@ impl<'a> Heap<'a> {
         -> bool
     {
         let block_ptr = block as *mut FreeBlock;
+
+        // Yuck, list traversals are gross without recursion.  Here,
+        // `*checking` is the pointer we want to check, and `checking` is
+        // the memory location we found it at, which we'll need if we want
+        // to replace the value `*checking` with a new value.
         let mut checking: *mut *mut FreeBlock = &mut self.free_lists[order];
+
+        // Loop until we run out of free blocks.
         while *checking != ptr::null_mut() {
+            // Is this the pointer we want to remove from the free list?
             if *checking == block_ptr {
+                // Yup, this is the one, so overwrite the value we used to
+                // get here with the next one in the sequence.
                 *checking = (*(*checking)).next;
                 return true;
             }
+
+            // Haven't found it yet, so point `checking` at the address
+            // containing our `next` field.  (Once again, this is so we'll
+            // be able to reach back and overwrite it later if necessary.)
             checking = &mut ((*(*checking)).next);
         }
         false
@@ -283,13 +297,17 @@ impl<'a> Heap<'a> {
     }
 
     /// Given a `block` with the specified `order`, find the "buddy" block,
-    /// that is, the other half of the block we could merge it with.
+    /// that is, the other half of the block we originally split it from,
+    /// and also the block we could potentially merge it with.
     pub unsafe fn buddy(&self, order: usize, block: *mut u8) -> Option<*mut u8> {
         let relative = (block as usize) - (self.heap_base as usize);
         let size = self.order_size(order);
         if size >= self.heap_size {
+            // The main heap itself does not have a budy.
             None
         } else {
+            // Fun: We can find our buddy by xoring the right bit in our
+            // offset from the base of the heap.
             Some(self.heap_base.offset((relative ^ size) as isize))
         }
     }
@@ -302,15 +320,27 @@ impl<'a> Heap<'a> {
     {
         let initial_order = self.allocation_order(old_size, align)
             .expect("Tried to dispose of invalid block");
+
+        // The fun part: When deallocating a block, we also want to check
+        // to see if its "buddy" is on the free list.  If the buddy block
+        // is also free, we merge them and continue walking up.
+        //
+        // `block` is the biggest merged block we have so far.
         let mut block = ptr;
         for order in initial_order..self.free_lists.len() {
+            // Would this block have a buddy?
             if let Some(buddy) = self.buddy(order, block) {
+                // Is this block's buddy free?
                 if self.free_list_remove(order, buddy) {
+                    // Merge them!  The lower address of the two is the
+                    // newly-merged block.  Then we want to try again.
                     block = min(block, buddy);
                     continue;
                 }
             }
 
+            // If we reach here, we didn't find a buddy block of this size,
+            // so take what we've got and mark it as free.
             self.free_list_insert(order, block);
             return;
         }
