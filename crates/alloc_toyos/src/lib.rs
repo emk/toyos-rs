@@ -19,7 +19,7 @@ extern crate spin;
 
 #[cfg(feature = "use-as-rust-allocator")]
 pub use integration::*;
-pub use heap::Heap;
+pub use heap::{Heap, FreeBlock};
 
 mod math;
 mod heap;

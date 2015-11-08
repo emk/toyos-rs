@@ -16,3 +16,7 @@ crate-type = ["staticlib"]
 rlibc = "*"
 # Spinlocks.
 spin = "*"
+
+[dependencies.alloc_toyos]
+path = "crates/alloc_toyos"
+features = ["use-as-rust-allocator"]
