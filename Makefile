@@ -64,8 +64,10 @@ libcore_nofp_patch := build/libcore_nofp.patch
 libcore_nofp_url := \
 	https://raw.githubusercontent.com/thepowersgang/rust-barebones-kernel/master/libcore_nofp.patch
 
+# Where to put our compiled runtime libraries for this platform.
 installed_target_libs := \
-	~/.multirust/toolchains/nightly/lib/rustlib/$(target)/lib
+	$(shell multirust which rustc | \
+		sed s,bin/rustc,lib/rustlib/$(target)/lib,)
 
 runtime_rlibs := \
 	$(installed_target_libs)/libcore.rlib \
@@ -98,3 +100,4 @@ $(installed_target_libs):
 $(installed_target_libs)/%.rlib: rust/src/%/lib.rs $(installed_target_libs)
 	@echo RUSTC $<
 	@$(RUSTC) $<
+	@echo Check $(installed_target_libs)

@@ -7,45 +7,34 @@ to see what Rust feels like on bare metal.
 [blog]: http://blog.phil-opp.com/
 [rust-barebones-kernel]: https://github.com/thepowersgang/rust-barebones-kernel
 
-## Building `libcore`
+## Building
 
-This is largely based on the approach taken by [rust-barebones-kernel][],
-but with added support for cargo.  The `Makefile` assumes that you're using
-a nighly build of run installed by `multirust`, and configured as an
-override for the current directory:
+First, we need to check out the source and rebuild the Rust runtime using
+bare-metal target and no floating point support:
 
-```sh
-multirust override nightly
-```
-
-First, you'll need to get your current version of `rustc`
-
-```
-$ rustc --version
-rustc 1.6.0-nightly (2e07996a9 2015-10-29)
-```
-
-Remember the hexadecimal number in the parentheses, and check out a
-matching source tree:
-
-```sh
-git clone https://github.com/rust-lang/rust
-(cd rust && git checkout 2e07996a9)
-```
-
-Now you can try to patch `libcore` and install a set of basic runtime
-libraries where `rustc` and `cargo` will find them:
-
-```
-make patch
+```rust
+git clone https://github.com/emk/toyos.rs.git
+cd toyos.rs
+multirust override nightly-2015-11-08
+git submodule update --init
 make runtime
 ```
 
-You may need to manually fix the `libcore` build to hide any new `f32` or
-`f63` features behind `#[cfg(not(disable_float))]`.
+Our copy of Rust has been patched to incoporate a version of the
+`libcore_nofp.patch` from [rust-barebones-kernel][], and the `rust`
+submodule points at a source tree that has been tested with the specific
+`nightly` build mentioned above.
 
-## Building the kernel
+From here, we should be able to build a kernel and run it using QEMU:
 
-```sh
+```rust
 make run
 ```
+
+## Licensing
+
+Licensed under the [Apache License, Version 2.0][LICENSE-APACHE] or the
+[MIT license][LICENSE-MIT], at your option.
+
+[LICENSE-APACHE]: http://www.apache.org/licenses/LICENSE-2.0
+[LICENSE-MIT]: http://opensource.org/licenses/MIT
