@@ -11,7 +11,7 @@
 //! sizes are a power of 2, which makes it easy to have one free list per
 //! block size.
 
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::mem::size_of;
 use std::ptr;
 
@@ -48,7 +48,6 @@ impl FreeBlock {
 pub struct Heap<'a> {
     /// The base address of our heap.  This must be aligned on a
     /// `MIN_HEAP_ALIGN` boundary.
-    #[allow(dead_code)]
     heap_base: *mut u8,
 
     /// The space available in our heap.  This must be a power of 2.
@@ -198,6 +197,31 @@ impl<'a> Heap<'a> {
         self.free_lists[order] = free_block_ptr;
     }
 
+    /// Attempt to remove a block from our free list, returning true
+    /// success, and false if the block wasn't on our free list.  This is
+    /// the slowest part of a primitive buddy allocator, because it runs in
+    /// O(log N) time where N is the number of blocks of a given size.
+    ///
+    /// We could perhaps improve this by keeping our free lists sorted,
+    /// because then "nursery generation" allocations would probably tend
+    /// to occur at lower addresses and then be faster to find / rule out
+    /// finding.
+    unsafe fn free_list_remove(
+        &mut self, order: usize, block: *mut u8)
+        -> bool
+    {
+        let block_ptr = block as *mut FreeBlock;
+        let mut checking: *mut *mut FreeBlock = &mut self.free_lists[order];
+        while *checking != ptr::null_mut() {
+            if *checking == block_ptr {
+                *checking = (*(*checking)).next;
+                return true;
+            }
+            checking = &mut ((*(*checking)).next);
+        }
+        false
+    }
+
     /// Split a `block` of order `order` down into a block of order
     /// `order_needed`, placing any unused chunks on the free list.
     unsafe fn split_free_block(
@@ -258,14 +282,38 @@ impl<'a> Heap<'a> {
         }
     }
 
+    /// Given a `block` with the specified `order`, find the "buddy" block,
+    /// that is, the other half of the block we could merge it with.
+    pub unsafe fn buddy(&self, order: usize, block: *mut u8) -> Option<*mut u8> {
+        let relative = (block as usize) - (self.heap_base as usize);
+        let size = self.order_size(order);
+        if size >= self.heap_size {
+            None
+        } else {
+            Some(self.heap_base.offset((relative ^ size) as isize))
+        }
+    }
+
     /// Deallocate a block allocated using `allocate`.  Note that the
     /// `old_size` and `align` values must match the values passed to
     /// `allocate`, or our heap will be corrupted.
-    #[allow(unused_variables)]
     pub unsafe fn deallocate(
         &mut self, ptr: *mut u8, old_size: usize, align: usize)
     {
-        // Ah, who cares?  We have lots of RAM.
+        let initial_order = self.allocation_order(old_size, align)
+            .expect("Tried to dispose of invalid block");
+        let mut block = ptr;
+        for order in initial_order..self.free_lists.len() {
+            if let Some(buddy) = self.buddy(order, block) {
+                if self.free_list_remove(order, buddy) {
+                    block = min(block, buddy);
+                    continue;
+                }
+            }
+
+            self.free_list_insert(order, block);
+            return;
+        }
     }
 }
 
@@ -322,7 +370,37 @@ mod test {
     }
 
     #[test]
-    fn test_heap() {
+    fn test_buddy() {
+        unsafe {
+            let heap_size = 256;
+            let mem = memalign(4096, heap_size);
+            let mut free_lists: [*mut FreeBlock; 5] = [0 as *mut _; 5];
+            let heap = Heap::new(mem, heap_size, &mut free_lists);
+
+            let block_16_0 = mem;
+            let block_16_1 = mem.offset(16);
+            assert_eq!(Some(block_16_1), heap.buddy(0, block_16_0));
+            assert_eq!(Some(block_16_0), heap.buddy(0, block_16_1));
+
+            let block_32_0 = mem;
+            let block_32_1 = mem.offset(32);
+            assert_eq!(Some(block_32_1), heap.buddy(1, block_32_0));
+            assert_eq!(Some(block_32_0), heap.buddy(1, block_32_1));
+
+            let block_32_2 = mem.offset(64);
+            let block_32_3 = mem.offset(96);
+            assert_eq!(Some(block_32_3), heap.buddy(1, block_32_2));
+            assert_eq!(Some(block_32_2), heap.buddy(1, block_32_3));
+
+            let block_256_0 = mem;
+            assert_eq!(None, heap.buddy(4, block_256_0));
+
+            free(mem);
+        }
+    }
+
+    #[test]
+    fn test_alloc_and_dealloc() {
         unsafe {
             let heap_size = 256;
             let mem = memalign(4096, heap_size);
@@ -344,8 +422,8 @@ mod test {
             let block_16_2 = heap.allocate(8, 8);
             assert_eq!(mem.offset(32), block_16_2);
 
-            let block_32_1 = heap.allocate(32, 32);
-            assert_eq!(mem.offset(64), block_32_1);
+            let block_32_2 = heap.allocate(32, 32);
+            assert_eq!(mem.offset(64), block_32_2);
 
             let block_16_3 = heap.allocate(8, 8);
             assert_eq!(mem.offset(48), block_16_3);
@@ -355,6 +433,23 @@ mod test {
 
             let too_fragmented = heap.allocate(64, 64);
             assert_eq!(ptr::null_mut(), too_fragmented);
+
+            heap.deallocate(block_32_2, 32, 32);
+            heap.deallocate(block_16_0, 8, 8);
+            heap.deallocate(block_16_3, 8, 8);
+            heap.deallocate(block_16_1, 8, 8);
+            heap.deallocate(block_16_2, 8, 8);
+
+            let block_128_0 = heap.allocate(128, 128);
+            assert_eq!(mem.offset(0), block_128_0);
+
+            heap.deallocate(block_128_1, 128, 128);
+            heap.deallocate(block_128_0, 128, 128);
+
+            // And allocate the whole heap, just to make sure everything
+            // got cleaned up correctly.
+            let block_256_0 = heap.allocate(256, 256);
+            assert_eq!(mem.offset(0), block_256_0);
 
             free(mem);
         }
