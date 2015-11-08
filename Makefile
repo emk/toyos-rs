@@ -20,7 +20,7 @@ libcore_nofp_url := \
 installed_target_libs := \
 	~/.multirust/toolchains/nightly/lib/rustlib/$(target)/lib
 
-.PHONY: all fmt clean run debug iso cargo core patch
+.PHONY: all fmt clean run debug iso cargo
 
 all: $(kernel)
 
@@ -56,6 +56,24 @@ cargo:
 	@echo CARGO
 	@cargo rustc --target $(target) -- -Z no-landing-pads
 
+build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
+	@echo NASM $<
+	@mkdir -p $(shell dirname $@)
+	@nasm -felf64 -Isrc/arch/$(arch)/ $< -o $@
+
+
+#==========================================================================
+# Building the Rust runtime for our bare-metal target
+
+RUSTC := \
+	rustc --verbose --target $(target) \
+		-Z no-landing-pads \
+		--out-dir $(installed_target_libs)
+
+.PHONY: runtime patch core alloc rustc_unicode collections
+
+runtime: core alloc rustc_unicode collections
+
 patch: $(libcore_nofp_patch)
 	@echo Patching libcore to remove floating point.
 	@(cd rust/src/libcore && patch -p1 < ../../../$(libcore_nofp_patch))
@@ -68,13 +86,19 @@ $(libcore_nofp_patch):
 core:
 	@echo RUSTC libcore
 	@mkdir -p $(installed_target_libs)
-	@rustc --verbose --target $(target) \
-		-Z no-landing-pads \
-		--cfg disable_float \
-		--out-dir $(installed_target_libs) \
-		rust/src/libcore/lib.rs
+	@$(RUSTC) --cfg disable_float rust/src/libcore/lib.rs
 
-build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
-	@echo NASM $<
-	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 -Isrc/arch/$(arch)/ $< -o $@
+alloc:
+	@echo RUSTC liballoc
+	@mkdir -p $(installed_target_libs)
+	@$(RUSTC) rust/src/liballoc/lib.rs
+
+rustc_unicode:
+	@echo RUSTC librustc_unicode
+	@mkdir -p $(installed_target_libs)
+	@$(RUSTC) rust/src/librustc_unicode/lib.rs
+
+collections:
+	@echo RUSTC libcollections
+	@mkdir -p $(installed_target_libs)
+	@$(RUSTC) rust/src/libcollections/lib.rs
