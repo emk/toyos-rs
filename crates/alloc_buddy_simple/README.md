@@ -86,8 +86,8 @@ with `isize` versus `usize`.
 
 ## Licensing
 
-Licensed under the Apache License, Version 2.0 [LICENSE-APACHE][] or the
-MIT license [LICENSE-MIT][], at your option.  This is HIGHLY EXPERIMENTAL
+Licensed under the [Apache License, Version 2.0][LICENSE-APACHE] or the
+[MIT license][LICENSE-MIT], at your option.  This is HIGHLY EXPERIMENTAL
 CODE PROVIDED "AS IS", AND IT MAY DO HORRIBLE THINGS TO YOUR COMPUTER OR
 DATA.  But if you're using random unsafe, unstable Rust libraries in
 implementing a panicking version of `malloc` in kernel space, you probably
