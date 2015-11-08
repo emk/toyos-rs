@@ -26,6 +26,9 @@ fn main() {
 }
 ```
 
+The constructor `Port::new` is available as a `const fn`, which allows you
+to configure a port at compile time.
+
 ## Licensing
 
 Licensed under the [Apache License, Version 2.0][LICENSE-APACHE] or the
