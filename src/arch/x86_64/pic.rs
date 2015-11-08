@@ -20,7 +20,7 @@
 //! calls.
 
 use spin::Mutex;
-use arch::x86_64::io;
+use cpuio;
 
 // Commands we need to send.
 const CMD_INIT: u8 = 0x11;
@@ -45,10 +45,10 @@ struct Pic {
     offset: u8,
 
     /// The processor I/O port on which we send commands.
-    command: io::Port<u8>,
+    command: cpuio::Port<u8>,
 
     /// The processor I/O port on which we send and receive data.
-    data: io::Port<u8>,
+    data: cpuio::Port<u8>,
 }
 
 impl HandlesInterrupt for Pic {
@@ -122,13 +122,13 @@ static PICS: Mutex<Pics> = Mutex::new(Pics {
     pics: [
         Pic {
             offset: 0x20,
-            command: unsafe { io::Port::new(0x20) },
-            data: unsafe { io::Port::new(0x21) },
+            command: unsafe { cpuio::Port::new(0x20) },
+            data: unsafe { cpuio::Port::new(0x21) },
         },
         Pic {
             offset: 0x28,
-            command: unsafe { io::Port::new(0xA0) },
-            data: unsafe { io::Port::new(0xA1) },
+            command: unsafe { cpuio::Port::new(0xA0) },
+            data: unsafe { cpuio::Port::new(0xA1) },
         },
     ],
 });

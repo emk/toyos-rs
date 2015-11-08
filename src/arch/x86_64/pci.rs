@@ -6,11 +6,11 @@ use core::fmt;
 use core::intrinsics::transmute;
 use core::iter::Iterator;
 use spin::Mutex;
-use arch::x86_64::io;
+use cpuio;
 
 struct Pci {
-    address: io::Port<u32>,
-    data: io::Port<u32>,
+    address: cpuio::Port<u32>,
+    data: cpuio::Port<u32>,
 }
 
 impl Pci {
@@ -116,8 +116,8 @@ impl fmt::Display for FunctionInfo {
 }
 
 static PCI: Mutex<Pci> = Mutex::new(Pci {
-    address: unsafe { io::Port::new(0xCF8) },
-    data: unsafe { io::Port::new(0xCFC) },
+    address: unsafe { cpuio::Port::new(0xCF8) },
+    data: unsafe { cpuio::Port::new(0xCFC) },
 });
 
 /// Iterator over all functions on our PCI bus.

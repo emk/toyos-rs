@@ -1,4 +1,3 @@
-pub mod io;
 pub mod pic;
 pub mod keyboard;
 pub mod serial;

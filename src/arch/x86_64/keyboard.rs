@@ -4,7 +4,7 @@
 //! Scancode table available at http://wiki.osdev.org/Keyboard#Scan_Code_Set_1
 
 use spin::Mutex;
-use arch::x86_64::io;
+use cpuio;
 
 /// A pair of keys which appear on both the left and right sides of the
 /// keyboard, such as "left shift" and "right shift".
@@ -94,9 +94,9 @@ struct State {
     /// be an early-80s IBM PC.
     ///
     /// We could read the standard keyboard port directly using
-    /// `inb(0x60)`, but it's nicer if we wrap it up in an `io::Port`
+    /// `inb(0x60)`, but it's nicer if we wrap it up in an `cpuio::Port`
     /// object.
-    port: io::Port<u8>,
+    port: cpuio::Port<u8>,
 
     /// We also need to keep track of which modifier keys have been pressed
     /// and released.
@@ -105,7 +105,7 @@ struct State {
 
 /// Our global keyboard state, protected by a mutex.
 static STATE: Mutex<State> = Mutex::new(State {
-    port: unsafe { io::Port::new(0x60) },
+    port: unsafe { cpuio::Port::new(0x60) },
     modifiers: Modifiers::new(),
 });
 

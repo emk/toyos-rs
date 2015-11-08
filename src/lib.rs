@@ -3,9 +3,10 @@
 
 extern crate collections;
 
+extern crate alloc_buddy_simple;
+extern crate cpuio;
 extern crate rlibc;
 extern crate spin;
-extern crate alloc_buddy_simple;
 
 use core::fmt::Write;
 

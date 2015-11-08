@@ -20,3 +20,6 @@ spin = "*"
 [dependencies.alloc_buddy_simple]
 path = "crates/alloc_buddy_simple"
 features = ["use-as-rust-allocator"]
+
+[dependencies.cpuio]
+path = "crates/cpuio"

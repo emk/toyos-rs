@@ -4,7 +4,7 @@
 
 use core::fmt;
 use spin::Mutex;
-use arch::x86_64::io;
+use cpuio;
 use self::Register::*;
 
 /// Each COM port has 8 I/O registers associated with it, some of which are
@@ -68,12 +68,12 @@ impl ComPort {
         self.port(ModemControl).write(0x0B);
     }
 
-    /// Get an io::Port object for one of our associated ports.  This is
+    /// Get an cpuio::Port object for one of our associated ports.  This is
     /// marked as `unsafe` because the returned port can potentially be
     /// used to mess with processor interrupts and otherwise violate
     /// fundamental abstractions about how Rust code works.
-    unsafe fn port(&mut self, register: Register) -> io::Port<u8> {
-        io::Port::new(self.base_addr + (register as u8 as u16))
+    unsafe fn port(&mut self, register: Register) -> cpuio::Port<u8> {
+        cpuio::Port::new(self.base_addr + (register as u8 as u16))
     }
 
     /// Set the baud rate as a divisor of 115,200.
