@@ -29,15 +29,8 @@ pub struct FreeBlock {
 }
 
 impl FreeBlock {
-    /// Construct a `FreeBlock` header pointing at `next`.  This is sort of
-    /// like `cons` in LISP, except that here, we're building a link list
-    /// with no data slot.  The "data" is actually the address at which we
-    /// store the `FreeBlock`!
-    ///
-    /// I use functional programming terminology (`head` and `tail`)
-    /// because these sorts of data structures are much easier to reason
-    /// about correctly in functional languages.
-    fn head(next: *mut FreeBlock) -> FreeBlock {
+    /// Construct a `FreeBlock` header pointing at `next`.
+    fn new(next: *mut FreeBlock) -> FreeBlock {
         FreeBlock { next: next }
     }
 }
@@ -193,7 +186,7 @@ impl<'a> Heap<'a> {
     /// Insert `block` of order `order` onto the appropriate free list.
     unsafe fn free_list_insert(&mut self, order: usize, block: *mut u8) {
         let free_block_ptr = block as *mut FreeBlock;
-        *free_block_ptr = FreeBlock::head(self.free_lists[order]);
+        *free_block_ptr = FreeBlock::new(self.free_lists[order]);
         self.free_lists[order] = free_block_ptr;
     }
 
