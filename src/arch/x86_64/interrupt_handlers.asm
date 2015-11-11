@@ -41,6 +41,10 @@ trace:
 ;;;
 ;;; This needs to be kept in sync with InterruptContext.
 %macro push_caller_saved 0
+        ;; For later: "<Tobba> ekidd: one thing you can also do to preserve
+        ;; FPU registers in interrupt handlers is to simply set the EM flag in
+        ;; CR0".  Seen on #rust-osdev.
+
         ;; Save ordinary registers.
         push rax
         push rcx

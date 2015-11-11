@@ -19,7 +19,7 @@ const IDT_ENTRY_COUNT: usize = 256;
 
 #[allow(dead_code)]
 extern {
-    /// The offset of the main code segment in out GDT.  Exported by our
+    /// The offset of the main code segment in our GDT.  Exported by our
     /// assembly code.
     static gdt64_code_offset: u16;
 
