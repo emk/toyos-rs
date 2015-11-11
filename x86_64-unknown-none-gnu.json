@@ -9,9 +9,8 @@
     "cpu": "x86-64",
     "features": "-mmx,-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-3dnow,-3dnowa,-avx,-avx2",
     "disable-redzone": true,
-    "eliminate-frame-pointer": false,
+    "eliminate-frame-pointer": true,
     "linker-is-gnu": true,
     "no-compiler-rt": true,
     "archive-format": "gnu"
 }
-
