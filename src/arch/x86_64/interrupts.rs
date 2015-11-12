@@ -59,6 +59,12 @@ pub struct InterruptContext {
 #[no_mangle]
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
+        0x00...0x0F => {
+            println!("{}, error 0x{:x}",
+                     x86::irq::EXCEPTIONS[ctx.int_id as usize],
+                     ctx.error_code);
+            loop {}
+        }
         0x20 => {
             // Timer.
         }
@@ -87,12 +93,12 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
 /// Create a IdtEntry marked as "absent".  Not tested with real
 /// interrupts yet.  This contains only simple values, so we can call
 /// it at compile time to initialize data structures.
-const fn no_handler() -> IdtEntry {
+const fn missing_handler() -> IdtEntry {
     IdtEntry {
         base_lo: 0,
         sel: 0,
         res0: 0,
-        flags: 0b000_01110,
+        flags: 0,
         base_hi: 0,
         res1: 0,
     }
@@ -141,7 +147,7 @@ static PICS: Mutex<ChainedPics> =
 
 /// Our global IDT.
 static IDT: Mutex<Idt> = Mutex::new(Idt {
-    table: [no_handler(); IDT_ENTRY_COUNT]
+    table: [missing_handler(); IDT_ENTRY_COUNT]
 });
 
 /// Initialize interrupt handling.

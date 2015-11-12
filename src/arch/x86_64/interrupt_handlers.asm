@@ -205,8 +205,7 @@ int_handlers:
         dq 0
         dq 0                    ; int_entry_30
         dq 0
-        dq int_entry_32
-%assign i 33
+%assign i 32
 %rep    224
         dq int_entry_%+i
 %assign i i+1
