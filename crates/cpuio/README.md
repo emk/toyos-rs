@@ -1,5 +1,9 @@
 # `cpuio`: Rust wrapper for `inb`, `outb`, etc., instructions
 
+**WARNING: The interface to the low-level `outb`, `outw` and `outl`
+functions has changed to match Linux.  Please reverse the order of
+arguments to these three functions.**
+
 This library is intended to be run on bare metal, and it only depends on
 the `core` library.
 
@@ -28,6 +32,11 @@ fn main() {
 
 The constructor `Port::new` is available as a `const fn`, which allows you
 to configure a port at compile time.
+
+The is also an `UnsafePort` type which is identical, except that `read` and
+`write` are explicitly marked as unsafe.  It's better to use `UnsafePort`
+whenever any individual port operation might corrupt memory or cause
+undefined behavior.
 
 ## Licensing
 

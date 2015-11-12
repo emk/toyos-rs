@@ -27,20 +27,24 @@ pub trait InOut {
 
 impl InOut for u8 {
     unsafe fn port_in(port: u16) -> u8 { inb(port) }
-    unsafe fn port_out(port: u16, value: u8) { outb(port, value); }
+    unsafe fn port_out(port: u16, value: u8) { outb(value, port); }
 }
 
 impl InOut for u16 {
     unsafe fn port_in(port: u16) -> u16 { inw(port) }
-    unsafe fn port_out(port: u16, value: u16) { outw(port, value); }
+    unsafe fn port_out(port: u16, value: u16) { outw(value, port); }
 }
 
 impl InOut for u32 {
     unsafe fn port_in(port: u16) -> u32 { inl(port) }
-    unsafe fn port_out(port: u16, value: u32) { outl(port, value); }
+    unsafe fn port_out(port: u16, value: u32) { outl(value, port); }
 }
 
 /// An I/O port over an arbitrary type supporting the `InOut` interface.
+///
+/// This version of `Port` has safe `read` and `write` functions, and it's
+/// appropriate for communicating with hardware that can't violate Rust's
+/// safety guarantees.
 #[derive(Debug)]
 pub struct Port<T: InOut> {
     // Port address.
@@ -52,13 +56,7 @@ pub struct Port<T: InOut> {
 }
 
 impl<T: InOut> Port<T> {
-    /// Create a new I/O port.  This is marked `unsafe` because it's the
-    /// responsibility of the caller to make that we're pointed at a valid
-    /// port address, and to make sure that returned port is used
-    /// correctly.
-    ///
-    /// This is marked as `const` so that you can define ports with known
-    /// addresses at compile time.
+    /// Create a new I/O port.
     pub const unsafe fn new(port: u16) -> Port<T> {
         Port { port: port, phantom: PhantomData }
     }
@@ -73,5 +71,34 @@ impl<T: InOut> Port<T> {
     /// Write data to the port.
     pub fn write(&mut self, value: T) {
         unsafe { T::port_out(self.port, value); }
+    }
+}
+
+/// An unsafe I/O port over an arbitrary type supporting the `InOut`
+/// interface.
+///
+/// This version of `Port` has unsafe `read` and `write` functions, and
+/// it's appropriate for speaking to hardware that can potentially corrupt
+/// memory or cause undefined behavior.
+#[derive(Debug)]
+pub struct UnsafePort<T: InOut> {
+    port: u16,
+    phantom: PhantomData<T>,
+}
+
+impl<T: InOut> UnsafePort<T> {
+    /// Create a new I/O port.
+    pub const unsafe fn new(port: u16) -> UnsafePort<T> {
+        UnsafePort { port: port, phantom: PhantomData }
+    }
+
+    /// Read data from the port.
+    pub unsafe fn read(&mut self) -> T {
+        T::port_in(self.port)
+    }
+
+    /// Write data to the port.
+    pub unsafe fn write(&mut self, value: T) {
+        T::port_out(self.port, value);
     }
 }
