@@ -3,7 +3,7 @@ name = "toyos"
 version = "0.1.0"
 dependencies = [
  "alloc_buddy_simple 0.1.0",
- "cpuio 0.1.0",
+ "cpuio 0.2.0",
  "pic8259_simple 0.1.0",
  "rlibc 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "spin 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -18,13 +18,13 @@ dependencies = [
 
 [[package]]
 name = "cpuio"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "pic8259_simple"
 version = "0.1.0"
 dependencies = [
- "cpuio 0.1.0",
+ "cpuio 0.2.0",
 ]
 
 [[package]]
