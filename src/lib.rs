@@ -5,6 +5,7 @@ extern crate collections;
 
 extern crate alloc_buddy_simple;
 extern crate cpuio;
+extern crate pic8259_simple;
 extern crate rlibc;
 extern crate spin;
 

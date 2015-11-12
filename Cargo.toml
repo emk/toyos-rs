@@ -23,3 +23,6 @@ features = ["use-as-rust-allocator"]
 
 [dependencies.cpuio]
 path = "crates/cpuio"
+
+[dependencies.pic8259_simple]
+path = "crates/pic8259_simple"

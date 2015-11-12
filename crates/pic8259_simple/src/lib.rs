@@ -19,59 +19,76 @@
 //! different base interrupts, because DOS used interrupt 0x21 for system
 //! calls.
 
-use spin::Mutex;
-use cpuio;
+#![feature(no_std, const_fn, core_slice_ext)]
+#![no_std]
 
-// Commands we need to send.
+extern crate cpuio;
+
+/// Command sent to begin PIC initialization.
 const CMD_INIT: u8 = 0x11;
+
+/// Command sent to acknowledge an interrupt.
 const CMD_END_OF_INTERRUPT: u8 = 0x20;
 
 // The mode in which we want to run our PICs.
 const MODE_8086: u8 = 0x01;
 
-/// This interface is implemented by each of our individual `Pic` chips,
-/// and by the subsystem as a whole.
-trait HandlesInterrupt {
-    /// Are we in change of handling the specified interrupt?
-    fn handles_interrupt(&self, interrupt_id: u8) -> bool;
-
-    /// Notify us that an interrupt has been handled and that we're ready
-    /// for more.
-    fn end_of_interrupt(&mut self, interrupt_id: u8);
-}
-
+/// An individual PIC chip.  This is not exported, because we always access
+/// it through `Pics` below.
 struct Pic {
     /// The base offset to which our interrupts are mapped.
     offset: u8,
 
     /// The processor I/O port on which we send commands.
-    command: cpuio::Port<u8>,
+    command: cpuio::UnsafePort<u8>,
 
     /// The processor I/O port on which we send and receive data.
-    data: cpuio::Port<u8>,
+    data: cpuio::UnsafePort<u8>,
 }
 
-impl HandlesInterrupt for Pic {
-    /// Each PIC handles 8 interrupts.
+impl Pic {
+    /// Are we in change of handling the specified interrupt?
+    /// (Each PIC handles 8 interrupts.)
     fn handles_interrupt(&self, interupt_id: u8) -> bool {
         self.offset <= interupt_id && interupt_id < self.offset + 8
     }
 
-    fn end_of_interrupt(&mut self, _interrupt_id: u8) {
+    /// Notify us that an interrupt has been handled and that we're ready
+    /// for more.
+    unsafe fn end_of_interrupt(&mut self, _interrupt_id: u8) {
         self.command.write(CMD_END_OF_INTERRUPT);
     }
 }
 
 /// A pair of chained PIC controllers.  This is the standard setup on x86.
-struct Pics {
+pub struct ChainedPics {
     pics: [Pic; 2],
 }
 
-impl Pics {
+impl ChainedPics {
+    /// Create a new interface for the standard PIC1 and PIC2 controllers,
+    /// specifying the desired interrupt offsets.
+    pub const unsafe fn new(offset1: u8, offset2: u8) -> ChainedPics {
+        ChainedPics {
+            pics: [
+                Pic {
+                    offset: offset1,
+                    command: cpuio::UnsafePort::new(0x20),
+                    data: cpuio::UnsafePort::new(0x21),
+                },
+                Pic {
+                    offset: offset2,
+                    command: cpuio::UnsafePort::new(0xA0),
+                    data: cpuio::UnsafePort::new(0xA1),
+                },
+            ]
+        }
+    }
+
     /// Initialize both our PICs.  We initialize them together, at the same
     /// time, because it's traditional to do so, and because I/O operations
     /// might not be instantaneous on older processors.
-    unsafe fn initialize(&mut self) {
+    pub unsafe fn initialize(&mut self) {
         // Save our original interrupt masks, because I'm too lazy to
         // figure out reasonable values.  We'll restore these when we're
         // done.
@@ -99,52 +116,21 @@ impl Pics {
         self.pics[0].data.write(saved_mask1);
         self.pics[1].data.write(saved_mask2);
     }
-}
 
-impl HandlesInterrupt for Pics {
-    fn handles_interrupt(&self, interrupt_id: u8) -> bool {
+    /// Do we handle this interrupt?
+    pub fn handles_interrupt(&self, interrupt_id: u8) -> bool {
         self.pics.iter().any(|p| p.handles_interrupt(interrupt_id))
     }
 
-    /// Figure out which PICs in our chain need to know about this
+    /// Figure out which (if any) PICs in our chain need to know about this
     /// interrupt.  This is tricky, because all interrupts from `pics[1]`
     /// get chained through `pics[0]`.
-    fn end_of_interrupt(&mut self, interrupt_id: u8) {
-        if self.pics[1].handles_interrupt(interrupt_id) {
-            self.pics[1].end_of_interrupt(interrupt_id);
+    pub unsafe fn notify_end_of_interrupt(&mut self, interrupt_id: u8) {
+        if self.handles_interrupt(interrupt_id) {
+            if self.pics[1].handles_interrupt(interrupt_id) {
+                self.pics[1].end_of_interrupt(interrupt_id);
+            }
+            self.pics[0].end_of_interrupt(interrupt_id);
         }
-        self.pics[0].end_of_interrupt(interrupt_id);
-    }
-}
-
-/// The configuration and state of all our PICs.
-static PICS: Mutex<Pics> = Mutex::new(Pics {
-    pics: [
-        Pic {
-            offset: 0x20,
-            command: unsafe { cpuio::Port::new(0x20) },
-            data: unsafe { cpuio::Port::new(0x21) },
-        },
-        Pic {
-            offset: 0x28,
-            command: unsafe { cpuio::Port::new(0xA0) },
-            data: unsafe { cpuio::Port::new(0xA1) },
-        },
-    ],
-});
-
-/// Initialize our PICs.
-pub unsafe fn initialize() {
-    let mut pics = PICS.lock();
-    pics.initialize();
-}
-
-/// Acknowledge that we have finished processing our interrupt, so that we
-/// can get more.  It is safe to call this on all interrupts; it's a noop
-/// if we don't handle them.
-pub unsafe fn finish_interrupt_if_pic(interrupt_id: u8) {
-    let mut pics = PICS.lock();
-    if pics.handles_interrupt(interrupt_id) {
-        pics.end_of_interrupt(interrupt_id);
     }
 }

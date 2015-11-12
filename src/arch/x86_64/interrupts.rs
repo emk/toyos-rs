@@ -9,9 +9,10 @@
 /// of frustration.
 
 use core::mem::size_of;
+use pic8259_simple::ChainedPics;
 use spin::Mutex;
 
-use arch::x86_64::{pic, keyboard};
+use arch::x86_64::keyboard;
 
 /// Maximum possible number of interrupts; we can shrink this later if we
 /// want.
@@ -75,7 +76,7 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     }
 
     unsafe {
-        pic::finish_interrupt_if_pic(ctx.int_id as u8);
+        PICS.lock().notify_end_of_interrupt(ctx.int_id as u8);
     }
 }
 
@@ -167,6 +168,11 @@ impl IdtInfo {
     }
 }
 
+/// Interface to our PIC (programmable interrupt controller) chips.  We
+/// want to map hardware interrupts to 0x20 (for PIC1) or 0x28 (for PIC2).
+static PICS: Mutex<ChainedPics> =
+    Mutex::new(unsafe { ChainedPics::new(0x20, 0x28) });
+
 /// Our global IDT.
 static IDT: Mutex<Idt> = Mutex::new(Idt {
     table: [IdtEntry::absent(); IDT_ENTRY_COUNT]
@@ -189,7 +195,7 @@ pub fn initialize() {
 
         // Remap our PIC so I/O interrupts don't get confused with processor
         // interrupts.  (Who designed this stuff?)
-        pic::initialize();
+        PICS.lock().initialize();
 
         // Enable this to trigger a sample interrupt.
         test_interrupt();
