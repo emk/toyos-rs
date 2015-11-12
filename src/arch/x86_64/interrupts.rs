@@ -9,9 +9,11 @@
 /// of frustration.
 
 use core::mem::size_of;
+use core::ptr;
 use pic8259_simple::ChainedPics;
 use spin::Mutex;
 use x86;
+use x86::irq::IdtEntry;
 
 use arch::x86_64::keyboard;
 
@@ -29,7 +31,7 @@ extern {
     fn report_interrupt();
 
     /// Interrupt handlers which call back to rust_interrupt_handler.
-    static int_handlers: [Option<unsafe extern "C" fn()>; IDT_ENTRY_COUNT];
+    static int_handlers: [*const u8; IDT_ENTRY_COUNT];
 }
 
 /// Various data available on our stack when handling an interrupt.
@@ -81,49 +83,36 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     }
 }
 
-/// An entry in a 64-bit IDT table.  See the Intel manual mentioned above
-/// for details, specifically, the section "6.14.1 64-Bit Mode IDT" and the
-/// following data values from "Table 3-2. System-Segment and
-/// Gate-Descriptor Types":
-///
-/// 1100 Call gate
-/// 1110 Interrupt gate
-/// 1111 Trap Gate
-#[repr(C, packed)]
-#[derive(Copy, Clone, Debug)]
-struct IdtEntry {
-    offset_low: u16,
-    segment: u16,
-    flags: u16,
-    offset_mid: u16,
-    offset_high: u32,
-    reserved: u32,
+
+/// Create a IdtEntry marked as "absent".  Not tested with real
+/// interrupts yet.  This contains only simple values, so we can call
+/// it at compile time to initialize data structures.
+const fn no_handler() -> IdtEntry {
+    IdtEntry {
+        base_lo: 0,
+        sel: 0,
+        res0: 0,
+        flags: 0b000_01110,
+        base_hi: 0,
+        res1: 0,
+    }
 }
 
-impl IdtEntry {
-    /// Create a IdtEntry marked as "absent".  Not tested with real
-    /// interrupts yet.  This contains only simple values, so we can call
-    /// it at compile time to initialize data structures.
-    const fn absent() -> IdtEntry {
-        IdtEntry {
-            offset_low: 0,
-            segment: 0,
-            flags: 0b000_01110_000_00000,
-            offset_mid: 0,
-            offset_high: 0,
-            reserved: 0,
-        }
-    }
+trait IdtEntryExt {
+    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry;
+}
+
+impl IdtEntryExt for IdtEntry {
 
     /// Create a new IdtEntry pointing at `handler`.
-    fn new(handler: unsafe extern "C" fn()) -> IdtEntry {
+    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry {
         IdtEntry {
-            offset_low: ((handler as u64) & 0xFFFF) as u16,
-            segment: gdt64_code_offset,
-            flags: 0b100_01110_000_00000,
-            offset_mid: (((handler as u64) & 0xFFFF0000) >> 16) as u16,
-            offset_high: (((handler as u64) & 0xFFFFFFFF00000000) >> 32) as u32,
-            reserved: 0,
+            base_lo: ((handler as u64) & 0xFFFF) as u16,
+            sel: gdt_code_selector,
+            res0: 0,
+            flags: 0b100_01110,
+            base_hi: (handler as u64) >> 16,
+            res1: 0,
         }
     }
 }
@@ -152,7 +141,7 @@ static PICS: Mutex<ChainedPics> =
 
 /// Our global IDT.
 static IDT: Mutex<Idt> = Mutex::new(Idt {
-    table: [IdtEntry::absent(); IDT_ENTRY_COUNT]
+    table: [no_handler(); IDT_ENTRY_COUNT]
 });
 
 /// Initialize interrupt handling.
@@ -160,9 +149,9 @@ pub fn initialize() {
     let mut idt = IDT.lock();
 
     // Fill in our IDT with our handlers.
-    for (index, &opt_handler) in int_handlers.iter().enumerate() {
-        if let Some(handler) = opt_handler {
-            idt.table[index] = IdtEntry::new(handler);
+    for (index, &handler) in int_handlers.iter().enumerate() {
+        if handler != ptr::null() {
+            idt.table[index] = IdtEntry::new(gdt64_code_offset, handler);
         }
     }
 
