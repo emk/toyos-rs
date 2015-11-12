@@ -19,7 +19,7 @@ multiprocessor systems, you'll probably want to read about the newer
 
 [PIC]: http://wiki.osdev.org/8259_PIC
 [APIC]: http://wiki.osdev.org/APIC
-[IOPIC]: http://wiki.osdev.org/IOAPIC
+[IOAPIC]: http://wiki.osdev.org/IOAPIC
 
 ## Using
 
