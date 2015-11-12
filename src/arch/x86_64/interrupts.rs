@@ -11,6 +11,7 @@
 use core::mem::size_of;
 use pic8259_simple::ChainedPics;
 use spin::Mutex;
+use x86;
 
 use arch::x86_64::keyboard;
 
@@ -134,37 +135,13 @@ struct Idt {
 }
 
 impl Idt {
-    /// The base address of our IDT.
-    fn base(&self) -> u64 {
-        &self.table[0] as *const IdtEntry as u64
-    }
-
-    /// The size of our IDT.
-    fn limit(&self) -> u16 {
-        (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16
-    }
-
-    /// An IdtInfo describing our IDT's location and size.
-    fn info(&self) -> IdtInfo {
-        IdtInfo {
-            limit: self.limit(),
-            base: self.base(),
-        }
-    }
-}
-
-/// A 6-byte value describing an ID.  This is basically an extended
-/// argument for use with the IDT function.
-#[repr(C, packed)]
-struct IdtInfo {
-    limit: u16,
-    base: u64,
-}
-
-impl IdtInfo {
-    /// Load this IDT into our processor.
-    pub unsafe fn load(&self) {
-        asm!("lidt ($0)" :: "{rax}"(self) :: "volatile");
+    /// Load our table into memory.
+    unsafe fn load(&self) {
+        let pointer = x86::dtables::DescriptorTablePointer {
+            base: &self.table[0] as *const IdtEntry as u64,
+            limit: (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16,
+        };
+        x86::dtables::lidt(&pointer);
     }
 }
 
@@ -191,7 +168,7 @@ pub fn initialize() {
 
     unsafe {
         // Load our IDT.
-        idt.info().load();
+        idt.load();
 
         // Remap our PIC so I/O interrupts don't get confused with processor
         // interrupts.  (Who designed this stuff?)
@@ -201,7 +178,7 @@ pub fn initialize() {
         test_interrupt();
 
         // Turn on real interrupts.
-        asm!("sti" :::: "volatile");
+        x86::irq::enable();
     }
 }
 
@@ -211,6 +188,6 @@ pub fn initialize() {
 #[allow(dead_code)]
 pub unsafe fn test_interrupt() {
     println!("Triggering interrupt.");
-    asm!("int $$0x80" :::: "volatile");
+    int!(0x80);
     println!("Interrupt returned!");
 }

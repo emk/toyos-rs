@@ -9,6 +9,9 @@ extern crate pic8259_simple;
 extern crate rlibc;
 extern crate spin;
 
+#[macro_use(int)]
+extern crate x86;
+
 use core::fmt::Write;
 
 // These need to be visible to the linker, so we need to export them.
