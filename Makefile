@@ -48,7 +48,7 @@ $(kernel): cargo $(assembly_object_files) $(linker_script)
 
 cargo:
 	@echo CARGO
-	@cargo rustc --target $(target) -- -Z no-landing-pads
+	@cargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 	@echo NASM $<
@@ -58,11 +58,6 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 
 #==========================================================================
 # Building the Rust runtime for our bare-metal target
-
-libcore_nofp_patch := build/libcore_nofp.patch
-
-libcore_nofp_url := \
-	https://raw.githubusercontent.com/thepowersgang/rust-barebones-kernel/master/libcore_nofp.patch
 
 # Where to put our compiled runtime libraries for this platform.
 installed_target_libs := \
@@ -84,15 +79,6 @@ RUSTC := \
 .PHONY: runtime 
 
 runtime: $(runtime_rlibs)
-
-patch: $(libcore_nofp_patch)
-	@echo Patching libcore to remove floating point.
-	@(cd rust/src/libcore && patch -p1 < ../../../$(libcore_nofp_patch))
-
-$(libcore_nofp_patch):
-	@echo CURL $(libcore_nofp_patch)
-	@mkdir -p $(shell dirname $(libcore_nofp_patch))
-	@curl -o $(libcore_nofp_patch) $(libcore_nofp_url)
 
 $(installed_target_libs):
 	@mkdir -p $(installed_target_libs)
