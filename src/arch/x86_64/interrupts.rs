@@ -116,7 +116,7 @@ pub unsafe extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
 
 
 //=========================================================================
-//  Installing our Interrupt Descriptor Table
+//  Interrupt Descriptor Table
 
 /// An Interrupt Descriptor Table which specifies how to respond to each
 /// interrupt.
@@ -131,7 +131,7 @@ impl Idt {
         self.load();
     }
 
-    // Fill in our IDT with our handlers.
+    /// Fill in our IDT with our handlers.
     fn add_handlers(&mut self) {
         for (index, &handler) in int_handlers.iter().enumerate() {
             if handler != ptr::null() {
@@ -154,6 +154,10 @@ impl Idt {
 static IDT: Mutex<Idt> = Mutex::new(Idt {
     table: [missing_handler(); IDT_ENTRY_COUNT]
 });
+
+
+//=========================================================================
+//  Initialization
 
 /// Use the `int` instruction to manually trigger an interrupt without
 /// actually using `sti` to enable interrupts.  This is highly recommended by
