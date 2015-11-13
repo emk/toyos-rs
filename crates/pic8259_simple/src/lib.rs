@@ -55,7 +55,7 @@ impl Pic {
 
     /// Notify us that an interrupt has been handled and that we're ready
     /// for more.
-    unsafe fn end_of_interrupt(&mut self, _interrupt_id: u8) {
+    unsafe fn end_of_interrupt(&mut self) {
         self.command.write(CMD_END_OF_INTERRUPT);
     }
 }
@@ -128,9 +128,9 @@ impl ChainedPics {
     pub unsafe fn notify_end_of_interrupt(&mut self, interrupt_id: u8) {
         if self.handles_interrupt(interrupt_id) {
             if self.pics[1].handles_interrupt(interrupt_id) {
-                self.pics[1].end_of_interrupt(interrupt_id);
+                self.pics[1].end_of_interrupt();
             }
-            self.pics[0].end_of_interrupt(interrupt_id);
+            self.pics[0].end_of_interrupt();
         }
     }
 }
