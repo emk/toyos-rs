@@ -104,40 +104,6 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     }
 }
 
-
-/// Create a IdtEntry marked as "absent".  Not tested with real
-/// interrupts yet.  This contains only simple values, so we can call
-/// it at compile time to initialize data structures.
-const fn missing_handler() -> IdtEntry {
-    IdtEntry {
-        base_lo: 0,
-        sel: 0,
-        res0: 0,
-        flags: 0,
-        base_hi: 0,
-        res1: 0,
-    }
-}
-
-trait IdtEntryExt {
-    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry;
-}
-
-impl IdtEntryExt for IdtEntry {
-
-    /// Create a new IdtEntry pointing at `handler`.
-    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry {
-        IdtEntry {
-            base_lo: ((handler as u64) & 0xFFFF) as u16,
-            sel: gdt_code_selector,
-            res0: 0,
-            flags: 0b100_01110,
-            base_hi: (handler as u64) >> 16,
-            res1: 0,
-        }
-    }
-}
-
 /// An Interrupt Descriptor Table which specifies how to respond to each
 /// interrupt.
 struct Idt {
@@ -200,4 +166,44 @@ pub unsafe fn test_interrupt() {
     println!("Triggering interrupt.");
     int!(0x80);
     println!("Interrupt returned!");
+}
+
+
+//-------------------------------------------------------------------------
+//  Being merged upstream
+//
+//  This code will go away when https://github.com/gz/rust-x86/pull/4
+//  is merged.
+
+/// Create a IdtEntry marked as "absent".  Not tested with real
+/// interrupts yet.  This contains only simple values, so we can call
+/// it at compile time to initialize data structures.
+const fn missing_handler() -> IdtEntry {
+    IdtEntry {
+        base_lo: 0,
+        sel: 0,
+        res0: 0,
+        flags: 0,
+        base_hi: 0,
+        res1: 0,
+    }
+}
+
+trait IdtEntryExt {
+    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry;
+}
+
+impl IdtEntryExt for IdtEntry {
+
+    /// Create a new IdtEntry pointing at `handler`.
+    fn new(gdt_code_selector: u16, handler: *const u8) -> IdtEntry {
+        IdtEntry {
+            base_lo: ((handler as u64) & 0xFFFF) as u16,
+            sel: gdt_code_selector,
+            res0: 0,
+            flags: 0b100_01110,
+            base_hi: (handler as u64) >> 16,
+            res1: 0,
+        }
+    }
 }
