@@ -150,6 +150,11 @@ impl Idt {
     }
 }
 
+/// Our global IDT.
+static IDT: Mutex<Idt> = Mutex::new(Idt {
+    table: [missing_handler(); IDT_ENTRY_COUNT]
+});
+
 /// Use the `int` instruction to manually trigger an interrupt without
 /// actually using `sti` to enable interrupts.  This is highly recommended by
 /// http://jvns.ca/blog/2013/12/04/day-37-how-a-keyboard-works/
@@ -159,11 +164,6 @@ pub unsafe fn test_interrupt() {
     int!(0x80);
     println!("Interrupt returned!");
 }
-
-/// Our global IDT.
-static IDT: Mutex<Idt> = Mutex::new(Idt {
-    table: [missing_handler(); IDT_ENTRY_COUNT]
-});
 
 /// Platform-independent initialization.
 pub unsafe fn initialize() {
