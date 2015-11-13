@@ -17,6 +17,10 @@ use x86::irq::IdtEntry;
 
 use arch::x86_64::keyboard;
 
+
+//=========================================================================
+//  Interface to interrupt_handlers.asm
+
 /// Maximum possible number of interrupts; we can shrink this later if we
 /// want.
 const IDT_ENTRY_COUNT: usize = 256;
@@ -54,8 +58,18 @@ pub struct InterruptContext {
     _pad_2: u32,
 }
 
+
+//=========================================================================
+//  Handling interrupts
+
+/// Interface to our PIC (programmable interrupt controller) chips.  We
+/// want to map hardware interrupts to 0x20 (for PIC1) or 0x28 (for PIC2).
+static PICS: Mutex<ChainedPics> =
+    Mutex::new(unsafe { ChainedPics::new(0x20, 0x28) });
+
 /// Print our information about a CPU exception, and loop.
 fn cpu_exception_handler(ctx: &InterruptContext) {
+
     // Print general information provided by x86::irq.
     println!("{}, error 0x{:x}",
              x86::irq::EXCEPTIONS[ctx.int_id as usize],
@@ -77,12 +91,10 @@ fn cpu_exception_handler(ctx: &InterruptContext) {
 /// Called from our assembly-language interrupt handlers to dispatch an
 /// interrupt.
 #[no_mangle]
-pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
+pub unsafe extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
         0x00...0x0F => cpu_exception_handler(ctx),
-        0x20 => {
-            // Timer.
-        }
+        0x20 => { /* Timer. */ }
         0x21 => {
             if let Some(input) = keyboard::read_char() {
                 if input == '\r' {
@@ -99,10 +111,12 @@ pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
         }
     }
 
-    unsafe {
-        PICS.lock().notify_end_of_interrupt(ctx.int_id as u8);
-    }
+    PICS.lock().notify_end_of_interrupt(ctx.int_id as u8);
 }
+
+
+//=========================================================================
+//  Installing our Interrupt Descriptor Table
 
 /// An Interrupt Descriptor Table which specifies how to respond to each
 /// interrupt.
@@ -111,50 +125,28 @@ struct Idt {
 }
 
 impl Idt {
-    /// Load our table into memory.
+    /// Initialize interrupt handling.
+    pub unsafe fn initialize(&mut self) {
+        self.add_handlers();
+        self.load();
+    }
+
+    // Fill in our IDT with our handlers.
+    fn add_handlers(&mut self) {
+        for (index, &handler) in int_handlers.iter().enumerate() {
+            if handler != ptr::null() {
+                self.table[index] = IdtEntry::new(gdt64_code_offset, handler);
+            }
+        }
+    }
+
+    /// Load this table as our interrupt table.
     unsafe fn load(&self) {
         let pointer = x86::dtables::DescriptorTablePointer {
             base: &self.table[0] as *const IdtEntry as u64,
             limit: (size_of::<IdtEntry>() * IDT_ENTRY_COUNT) as u16,
         };
         x86::dtables::lidt(&pointer);
-    }
-}
-
-/// Interface to our PIC (programmable interrupt controller) chips.  We
-/// want to map hardware interrupts to 0x20 (for PIC1) or 0x28 (for PIC2).
-static PICS: Mutex<ChainedPics> =
-    Mutex::new(unsafe { ChainedPics::new(0x20, 0x28) });
-
-/// Our global IDT.
-static IDT: Mutex<Idt> = Mutex::new(Idt {
-    table: [missing_handler(); IDT_ENTRY_COUNT]
-});
-
-/// Initialize interrupt handling.
-pub fn initialize() {
-    let mut idt = IDT.lock();
-
-    // Fill in our IDT with our handlers.
-    for (index, &handler) in int_handlers.iter().enumerate() {
-        if handler != ptr::null() {
-            idt.table[index] = IdtEntry::new(gdt64_code_offset, handler);
-        }
-    }
-
-    unsafe {
-        // Load our IDT.
-        idt.load();
-
-        // Remap our PIC so I/O interrupts don't get confused with processor
-        // interrupts.  (Who designed this stuff?)
-        PICS.lock().initialize();
-
-        // Enable this to trigger a sample interrupt.
-        test_interrupt();
-
-        // Turn on real interrupts.
-        x86::irq::enable();
     }
 }
 
@@ -166,6 +158,23 @@ pub unsafe fn test_interrupt() {
     println!("Triggering interrupt.");
     int!(0x80);
     println!("Interrupt returned!");
+}
+
+/// Our global IDT.
+static IDT: Mutex<Idt> = Mutex::new(Idt {
+    table: [missing_handler(); IDT_ENTRY_COUNT]
+});
+
+/// Platform-independent initialization.
+pub unsafe fn initialize() {
+    PICS.lock().initialize();
+    IDT.lock().initialize();
+
+    // Enable this to trigger a sample interrupt.
+    test_interrupt();
+
+    // Turn on real interrupts.
+    x86::irq::enable();
 }
 
 

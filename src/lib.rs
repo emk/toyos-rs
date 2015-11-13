@@ -36,8 +36,10 @@ pub extern "C" fn rust_main() {
           .set_colors(ColorScheme::new(Yellow, DarkGrey));
     println!("Hello, world!");
 
-    arch::interrupts::initialize();
-    unsafe { heap::initialize(); }
+    unsafe {
+        arch::interrupts::initialize();
+        heap::initialize();
+    }
 
     let mut vec = collections::vec::Vec::<u8>::new();
     vec.push(1);
