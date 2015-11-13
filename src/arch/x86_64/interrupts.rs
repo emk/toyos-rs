@@ -54,17 +54,32 @@ pub struct InterruptContext {
     _pad_2: u32,
 }
 
+/// Print our information about a CPU exception, and loop.
+fn cpu_exception_handler(ctx: &InterruptContext) {
+    // Print general information provided by x86::irq.
+    println!("{}, error 0x{:x}",
+             x86::irq::EXCEPTIONS[ctx.int_id as usize],
+             ctx.error_code);
+
+    // Provide detailed information about our error code if we know how to
+    // parse it.
+    match ctx.int_id {
+        14 => {
+            let err = x86::irq::PageFaultError::from_bits(ctx.error_code);
+            println!("{:?}", err);
+        }
+        _ => {}
+    }
+
+    loop {}
+}
+
 /// Called from our assembly-language interrupt handlers to dispatch an
 /// interrupt.
 #[no_mangle]
 pub extern "C" fn rust_interrupt_handler(ctx: &InterruptContext) {
     match ctx.int_id {
-        0x00...0x0F => {
-            println!("{}, error 0x{:x}",
-                     x86::irq::EXCEPTIONS[ctx.int_id as usize],
-                     ctx.error_code);
-            loop {}
-        }
+        0x00...0x0F => cpu_exception_handler(ctx),
         0x20 => {
             // Timer.
         }
