@@ -9,7 +9,6 @@ very well yet include:**
 1. Masking interrupts.
 2. Dealing with spurious interrupts.
 3. Non-standard configurations.
-4. Slow PIC chips that require I/O delays.
 
 This code is based on the [OSDev Wiki PIC notes][PIC], but it's not a
 complete implementation of everything they discuss.  Also note that if you

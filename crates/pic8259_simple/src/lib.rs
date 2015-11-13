@@ -89,6 +89,16 @@ impl ChainedPics {
     /// time, because it's traditional to do so, and because I/O operations
     /// might not be instantaneous on older processors.
     pub unsafe fn initialize(&mut self) {
+        // We need to add a delay between writes to our PICs, especially on
+        // older motherboards.  But we don't necessarily have any kind of
+        // timers yet, because most of them require interrupts.  Various
+        // older versions of Linux and other PC operating systems have
+        // worked around this by writing garbage data to port 0x80, which
+        // allegedly takes long enough to make everything work on most
+        // hardware.  Here, `wait` is a closure.
+        let mut wait_port: cpuio::Port<u8> = cpuio::Port::new(0x80);
+        let mut wait = || { wait_port.write(0) };
+
         // Save our original interrupt masks, because I'm too lazy to
         // figure out reasonable values.  We'll restore these when we're
         // done.
@@ -98,19 +108,27 @@ impl ChainedPics {
         // Tell each PIC that we're going to send it a three-byte
         // initialization sequence on its data port.
         self.pics[0].command.write(CMD_INIT);
+        wait();
         self.pics[1].command.write(CMD_INIT);
+        wait();
 
         // Byte 1: Set up our base offsets.
         self.pics[0].data.write(self.pics[0].offset);
+        wait();
         self.pics[1].data.write(self.pics[1].offset);
+        wait();
 
         // Byte 2: Configure chaining between PIC1 and PIC2.
         self.pics[0].data.write(4);
+        wait();
         self.pics[1].data.write(2);
+        wait();
 
         // Byte 3: Set our mode.
         self.pics[0].data.write(MODE_8086);
+        wait();
         self.pics[1].data.write(MODE_8086);
+        wait();
 
         // Restore our saved masks.
         self.pics[0].data.write(saved_mask1);
