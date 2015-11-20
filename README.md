@@ -9,7 +9,7 @@ to see what Rust feels like on bare metal.
 
 ## Building
 
-First, we need to check out the source and rebuild the Rust runtime using
+First, we need to check out the source and rebuild the Rust runtime using a
 bare-metal target and no floating point support:
 
 ```rust

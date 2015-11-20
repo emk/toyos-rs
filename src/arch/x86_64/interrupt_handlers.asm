@@ -1,7 +1,7 @@
 %include 'common.inc'
 
 global report_interrupt
-global int_handlers
+global interrupt_handlers
 
 extern rust_interrupt_handler
 
@@ -14,8 +14,8 @@ bits 64
         jmp trace
 %endmacro
 
-;;; Prints "INTx" in green, where "x" is a character literalpassed at the bottom
-;;; of eax.
+;;; Prints "INTx" in green, where "x" is a character literal passed at the
+;;; bottom of eax.
 trace:
         shl eax, 16
         or eax, 0x2f202f54
@@ -172,7 +172,7 @@ report_interrupt:
         iretq
 
 section .rodata
-int_handlers:
+interrupt_handlers:
         dq int_entry_0
         dq int_entry_1
         dq int_entry_2

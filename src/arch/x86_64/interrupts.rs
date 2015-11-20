@@ -35,7 +35,7 @@ extern {
     fn report_interrupt();
 
     /// Interrupt handlers which call back to rust_interrupt_handler.
-    static int_handlers: [*const u8; IDT_ENTRY_COUNT];
+    static interrupt_handlers: [*const u8; IDT_ENTRY_COUNT];
 }
 
 /// Various data available on our stack when handling an interrupt.
@@ -133,7 +133,7 @@ impl Idt {
 
     /// Fill in our IDT with our handlers.
     fn add_handlers(&mut self) {
-        for (index, &handler) in int_handlers.iter().enumerate() {
+        for (index, &handler) in interrupt_handlers.iter().enumerate() {
             if handler != ptr::null() {
                 self.table[index] = IdtEntry::new(gdt64_code_offset, handler);
             }
