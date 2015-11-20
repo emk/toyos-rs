@@ -13,8 +13,8 @@ First, we need to check out the source and rebuild the Rust runtime using a
 bare-metal target and no floating point support:
 
 ```rust
-git clone https://github.com/emk/toyos.rs.git
-cd toyos.rs
+git clone https://github.com/emk/toyos-rs.git
+cd toyos-rs
 multirust override nightly-2015-11-08
 git submodule update --init
 make runtime

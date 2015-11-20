@@ -156,7 +156,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "x86"
 version = "0.4.0"
-source = "git+https://github.com/gz/rust-x86.git#e8aa80c527ca3c70ea5a3bed0d8d556b88eac7eb"
+source = "git+https://github.com/gz/rust-x86.git#231559f903e87db3fe7320133d9644047be8f740"
 dependencies = [
  "csv 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "phf 0.7.7 (registry+https://github.com/rust-lang/crates.io-index)",

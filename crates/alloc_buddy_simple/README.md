@@ -27,7 +27,7 @@ You can pull this into a Cargo build using:
 
 ```
 [dependencies.alloc_buddy_simple]
-git = "https://github.com/emk/toyos.rs"
+git = "https://github.com/emk/toyos-rs"
 features = ["use-as-rust-allocator"]
 ```
 
@@ -62,7 +62,7 @@ For calling `initialize_allocator`, see [the toyos `heap.rs` file][heap.rs]
 for example code.  Do this before trying to use your heap, or you will get
 a Rust panic!
 
-[heap.rs]: https://github.com/emk/toyos.rs/blob/master/src/heap.rs
+[heap.rs]: https://github.com/emk/toyos-rs/blob/master/src/heap.rs
 
 ## Compiling a custom `libcollections`
 
@@ -75,7 +75,7 @@ equivalent directory on your system.  For example code, see
 You may also want to apply the [barebones nofp patch][nofp] to `libcore` if
 your kernel space does not support floating point.
 
-[Makefile]: https://github.com/emk/toyos.rs/blob/master/Makefile
+[Makefile]: https://github.com/emk/toyos-rs/blob/master/Makefile
 [nofp]: https://github.com/thepowersgang/rust-barebones-kernel/blob/master/libcore_nofp.patch
 
 ## Warning
