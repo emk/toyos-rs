@@ -63,6 +63,9 @@ pub struct Heap<'a> {
     min_block_size_log2: u8,
 }
 
+// A Heap struct is the sole owner of the memory it manages
+unsafe impl<'a> Send for Heap<'a> {}
+
 impl<'a> Heap<'a> {
     /// Create a new heap.  `heap_base` must be aligned on a
     /// `MIN_HEAP_ALIGN` boundary, `heap_size` must be a power of 2, and
