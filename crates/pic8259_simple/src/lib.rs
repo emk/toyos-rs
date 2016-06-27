@@ -142,7 +142,10 @@ impl ChainedPics {
     
     // Function to set interrupt mask for master or slave
     pub unsafe fn set_mask(&mut self, pic_no: usize, mask: u8) {
+        let mut wait_port: cpuio::Port<u8> = cpuio::Port::new(0x80);
+        let mut wait = || { wait_port.write(0) };
         self.pics[pic_no].data.write(mask);
+        wait();
     }
 
     /// Figure out which (if any) PICs in our chain need to know about this
