@@ -1,4 +1,4 @@
-#![feature(asm, const_fn, no_std, lang_items, unique, collections)]
+#![feature(asm, const_fn, lang_items, unique, collections)]
 #![no_std]
 
 extern crate collections;

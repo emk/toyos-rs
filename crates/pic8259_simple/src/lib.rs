@@ -19,7 +19,7 @@
 //! different base interrupts, because DOS used interrupt 0x21 for system
 //! calls.
 
-#![feature(no_std, const_fn, core_slice_ext)]
+#![feature(const_fn)]
 #![no_std]
 
 extern crate cpuio;
