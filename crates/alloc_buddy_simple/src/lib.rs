@@ -7,8 +7,6 @@
 //!
 //! Note that our `Heap` API is unstable.
 
-#![feature(no_std)]
-#![cfg_attr(not(test), feature(core_slice_ext))]
 #![no_std]
 
 #![cfg_attr(feature = "use-as-rust-allocator", feature(allocator, const_fn))]
