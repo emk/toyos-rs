@@ -10,26 +10,31 @@ to see what Rust feels like on bare metal.
 ## Building
 
 First, we need to check out the source and rebuild the Rust runtime using a
-bare-metal target and no floating point support:
+bare-metal target and no hardware floating point support:
 
-```rust
+```sh
+# Get our source code.
 git clone https://github.com/emk/toyos-rs.git
 cd toyos-rs
-multirust override nightly-2015-11-08
+
+# Set up a Rust compiler.
+curl https://sh.rustup.rs -sSf | sh
+rustup update nightly-2016-09-16
+rustup override set nightly-2016-09-16
+
+# Get a copy of the Rust source code so we can rebuild core
+# for a bare-metal target.
 git submodule update --init
 make runtime
 ```
 
-Our copy of Rust has been patched to incoporate a version of the
-`libcore_nofp.patch` from [rust-barebones-kernel][], and the `rust`
-submodule points at a source tree that has been tested with the specific
-`nightly` build mentioned above.
-
 From here, we should be able to build a kernel and run it using QEMU:
 
-```rust
+```sh
 make run
 ```
+
+You should be able to type.
 
 ## Licensing
 
