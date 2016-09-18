@@ -61,7 +61,7 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm $(assembly_header_files)
 
 # Where to put our compiled runtime libraries for this platform.
 installed_target_libs := \
-	$(shell multirust which rustc | \
+	$(shell rustup which rustc | \
 		sed s,bin/rustc,lib/rustlib/$(target)/lib,)
 
 runtime_rlibs := \
@@ -73,10 +73,9 @@ runtime_rlibs := \
 RUSTC := \
 	rustc --verbose --target $(target) \
 		-Z no-landing-pads \
-		--cfg disable_float \
 		--out-dir $(installed_target_libs)
 
-.PHONY: runtime 
+.PHONY: runtime
 
 runtime: $(runtime_rlibs)
 
