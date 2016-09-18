@@ -1,6 +1,6 @@
 [package]
 name = "pic8259_simple"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Eric Kidd <git@randomhacks.net>"]
 
 description = "Kernel-space interface to the 8259 and 8259A interrupt controllers"
