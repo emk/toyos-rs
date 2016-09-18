@@ -14,10 +14,7 @@ crate-type = ["staticlib"]
 [dependencies]
 rlibc = "0.1.4"                 # Low-level functions like memcpy.
 spin = "0.3.4"                  # Spinlocks.
-
-# CPU data structures.  We need a pre-release version of this.
-[dependencies.x86]
-git = "https://github.com/gz/rust-x86.git"
+x86 = "0.6.0"                   # CPU data structures.
 
 [dependencies.alloc_buddy_simple]
 path = "crates/alloc_buddy_simple"
