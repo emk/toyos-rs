@@ -1,6 +1,6 @@
 [package]
 name = "pic8259_simple"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Eric Kidd <git@randomhacks.net>"]
 
 description = "Kernel-space interface to the 8259 and 8259A interrupt controllers"
@@ -11,5 +11,5 @@ keywords = ["no_std", "kernel", "interrupts"]
 license = "Apache-2.0/MIT"
 
 [dependencies.cpuio]
-version = "0.2.0"
+version = "0.3.0"
 path = "../cpuio"
