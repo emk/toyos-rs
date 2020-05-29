@@ -139,6 +139,14 @@ impl ChainedPics {
     pub fn handles_interrupt(&self, interrupt_id: u8) -> bool {
         self.pics.iter().any(|p| p.handles_interrupt(interrupt_id))
     }
+    
+    // Function to set interrupt mask for master or slave
+    pub unsafe fn set_mask(&mut self, pic_no: usize, mask: u8) {
+        let mut wait_port: cpuio::Port<u8> = cpuio::Port::new(0x80);
+        let mut wait = || { wait_port.write(0) };
+        self.pics[pic_no].data.write(mask);
+        wait();
+    }
 
     /// Figure out which (if any) PICs in our chain need to know about this
     /// interrupt.  This is tricky, because all interrupts from `pics[1]`
