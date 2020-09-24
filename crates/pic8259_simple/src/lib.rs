@@ -58,6 +58,16 @@ impl Pic {
     unsafe fn end_of_interrupt(&mut self) {
         self.command.write(CMD_END_OF_INTERRUPT);
     }
+
+    /// Reads the interrupt mask of this PIC.
+    unsafe fn read_mask(&mut self) -> u8 {
+        self.data.read()
+    }
+
+    /// Writes the interrupt mask of this PIC.
+    unsafe fn write_mask(&mut self, mask: u8) {
+        self.data.write(mask)
+    }
 }
 
 /// A pair of chained PIC controllers.  This is the standard setup on x86.
@@ -102,8 +112,7 @@ impl ChainedPics {
         // Save our original interrupt masks, because I'm too lazy to
         // figure out reasonable values.  We'll restore these when we're
         // done.
-        let saved_mask1 = self.pics[0].data.read();
-        let saved_mask2 = self.pics[1].data.read();
+        let saved_masks = self.read_masks();
 
         // Tell each PIC that we're going to send it a three-byte
         // initialization sequence on its data port.
@@ -131,8 +140,23 @@ impl ChainedPics {
         wait();
 
         // Restore our saved masks.
-        self.pics[0].data.write(saved_mask1);
-        self.pics[1].data.write(saved_mask2);
+        self.write_masks(saved_masks[0], saved_masks[1])
+    }
+
+    /// Reads the interrupt masks of both PICs.
+    pub unsafe fn read_masks(&mut self) -> [u8; 2] {
+        [self.pics[0].read_mask(), self.pics[1].read_mask()]
+    }
+
+    /// Writes the interrupt masks of both PICs.
+    pub unsafe fn write_masks(&mut self, mask1: u8, mask2: u8) {
+        self.pics[0].write_mask(mask1);
+        self.pics[1].write_mask(mask2);
+    }
+
+    /// Disables both PICs by masking all interrupts.
+    pub unsafe fn disable(&mut self) {
+        self.write_masks(u8::MAX, u8::MAX)
     }
 
     /// Do we handle this interrupt?
