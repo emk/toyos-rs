@@ -81,7 +81,7 @@ impl ChainedPics {
                     command: cpuio::UnsafePort::new(0xA0),
                     data: cpuio::UnsafePort::new(0xA1),
                 },
-            ]
+            ],
         }
     }
 
@@ -97,7 +97,7 @@ impl ChainedPics {
         // allegedly takes long enough to make everything work on most
         // hardware.  Here, `wait` is a closure.
         let mut wait_port: cpuio::Port<u8> = cpuio::Port::new(0x80);
-        let mut wait = || { wait_port.write(0) };
+        let mut wait = || wait_port.write(0);
 
         // Save our original interrupt masks, because I'm too lazy to
         // figure out reasonable values.  We'll restore these when we're
