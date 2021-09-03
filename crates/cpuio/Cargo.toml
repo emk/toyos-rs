@@ -1,6 +1,6 @@
 [package]
 name = "cpuio"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Eric Kidd <git@randomhacks.net>"]
 
 description = "Bare metal (no_std) inb, outb, inw, outw, inl, outw instructions with Rust-like API"
